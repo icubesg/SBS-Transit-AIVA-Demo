@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Mic, MapPin, Map, TrainFront, Ticket, Bus, Menu, Home, Wifi, Bell, Share2, Bookmark, ShoppingBag, Repeat, Mail, MessageCircle, Search, ChevronLeft, ChevronRight, ChevronDown, RefreshCw, Bike, Accessibility, Locate, ArrowLeft, Star, ExternalLink, Lock, MoreVertical, ZoomIn, Navigation, Clock, ShieldAlert, RotateCw, Footprints, ArrowRightLeft, Maximize2, SlidersHorizontal, Car, Circle, BatteryFull, SignalHigh, Pause, Play, Square, Info, GitFork, HelpCircle } from 'lucide-react';
+import { X, Volume2, VolumeX, Send, Mic, MapPin, Map, TrainFront, Ticket, Bus, Menu, Home, Wifi, Bell, Share2, Bookmark, ShoppingBag, Repeat, Mail, MessageCircle, Search, ChevronLeft, ChevronRight, ChevronDown, RefreshCw, Bike, Accessibility, Locate, ArrowLeft, Star, ExternalLink, Lock, MoreVertical, ZoomIn, Navigation, Clock, ShieldAlert, RotateCw, Footprints, ArrowRightLeft, Maximize2, SlidersHorizontal, Car, Circle, BatteryFull, SignalHigh, Info, GitFork, HelpCircle } from 'lucide-react';
 
 // ---- Color scheme (matches the quick-links reference) ----
 const PURPLE = '#6F2482';
@@ -584,8 +584,9 @@ function DrawerMenu({ open, onClose, onSelect }) {
   return (
     <>
       <div
-        className={`absolute inset-0 z-30 bg-black transition-opacity duration-300 ${open ? 'opacity-40 pointer-events-auto' : 'opacity-0 pointer-events-none'
-          }`}
+        className={`absolute inset-0 z-30 bg-black transition-opacity duration-300 ${
+          open ? 'opacity-40 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
         onClick={onClose}
       />
       <div
@@ -867,43 +868,7 @@ function Timestamp({ align }) {
   );
 }
 
-function VoiceControls({ isPaused, isStopped, onTogglePause, onStop, onPlay }) {
-  return (
-    <div className="flex items-center gap-4 px-4 py-2 border-t border-gray-100">
-      <button
-        onClick={onTogglePause}
-        disabled={isStopped}
-        className="flex items-center gap-1.5 transition active:scale-95 disabled:opacity-40"
-        aria-label={isPaused ? 'Resume voice playback' : 'Pause voice playback'}
-      >
-        {isPaused ? <Play size={13} color={PURPLE_DARK} fill={PURPLE_DARK} /> : <Pause size={13} color={PURPLE_DARK} fill={PURPLE_DARK} />}
-        <span className="text-[11px] font-semibold" style={{ color: PURPLE_DARK }}>{isPaused ? 'Resume' : 'Pause'}</span>
-      </button>
-      <span className="w-px h-3.5" style={{ backgroundColor: '#E5DCEC' }} />
-      {isStopped ? (
-        <button
-          onClick={onPlay}
-          className="flex items-center gap-1.5 transition active:scale-95"
-          aria-label="Play voice playback"
-        >
-          <Play size={12} color="#6B6B76" fill="#6B6B76" />
-          <span className="text-[11px] font-semibold text-gray-600">Play</span>
-        </button>
-      ) : (
-        <button
-          onClick={onStop}
-          className="flex items-center gap-1.5 transition active:scale-95"
-          aria-label="Stop voice playback"
-        >
-          <Square size={11} color="#6B6B76" fill="#6B6B76" />
-          <span className="text-[11px] font-semibold text-gray-600">Stop</span>
-        </button>
-      )}
-    </div>
-  );
-}
-
-function Message({ msg, onOption, onRate, onEnlargeMap, playingId, isPaused, isStopped, onTogglePause, onStopPlayback, onPlayPlayback }) {
+function Message({ msg, onOption, onRate, onEnlargeMap }) {
   if (msg.type === 'user') {
     return (
       <div className="flex flex-col items-end">
@@ -919,22 +884,13 @@ function Message({ msg, onOption, onRate, onEnlargeMap, playingId, isPaused, isS
   }
 
   if (msg.type === 'aiva-text') {
-    const isPlaying = msg.id === playingId;
     return (
       <div className="flex flex-col items-start">
-        <div className="max-w-xs bg-white shadow-sm rounded-2xl rounded-bl-md overflow-hidden">
-          <div className="px-4 py-2.5 text-sm leading-relaxed" style={{ color: PURPLE_DARK }}>
-            {msg.text}
-          </div>
-          {isPlaying && (
-            <VoiceControls
-              isPaused={isPaused}
-              isStopped={isStopped}
-              onTogglePause={onTogglePause}
-              onStop={onStopPlayback}
-              onPlay={onPlayPlayback}
-            />
-          )}
+        <div
+          className="max-w-xs bg-white shadow-sm rounded-2xl rounded-bl-md px-4 py-2.5 text-sm leading-relaxed"
+          style={{ color: PURPLE_DARK }}
+        >
+          {msg.text}
         </div>
         <p className="text-[10px] text-gray-400 mt-1 pl-1">{formatTime(msg.time)}</p>
       </div>
@@ -1001,9 +957,7 @@ export default function AskAivaMockup() {
   const [awaitingDestination, setAwaitingDestination] = useState(false);
   const [awaitingOriginReply, setAwaitingOriginReply] = useState(false);
   const [pendingDestination, setPendingDestination] = useState('');
-  const [playingMessageId, setPlayingMessageId] = useState(null);
-  const [isVoicePaused, setIsVoicePaused] = useState(false);
-  const [isVoiceStopped, setIsVoiceStopped] = useState(false);
+  const [soundOn, setSoundOn] = useState(true);
   const scrollRef = useRef(null);
 
   const [messages, setMessages] = useState(() => buildWelcomeMessages());
@@ -1012,12 +966,7 @@ export default function AskAivaMockup() {
     const now = Date.now();
     const t = (minutesAgo) => new Date(now - minutesAgo * 60000);
     return [
-      { id: nextId(), type: 'aiva-text', time: t(1), text: 'Hi, I am AIVA. How may I assist you today?' },
-      {
-        id: nextId(),
-        type: 'aiva-options',
-        options: ['Where is the nearest bus stop?', 'How do I get to…?', 'Station Map'],
-      },
+      { id: nextId(), type: 'aiva-text', time: t(1), text: "Hello, I'm AIVA, your friendly AI Virtual Assistant. I'm here to help you with your journey. You can also check in with me if you have any questions about ticketing." },
     ];
   }
 
@@ -1031,9 +980,6 @@ export default function AskAivaMockup() {
     setAwaitingDestination(false);
     setAwaitingOriginReply(false);
     setPendingDestination('');
-    setPlayingMessageId(null);
-    setIsVoicePaused(false);
-    setIsVoiceStopped(false);
   };
 
   useEffect(() => {
@@ -1041,24 +987,6 @@ export default function AskAivaMockup() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, isTyping, isTranscribing]);
-
-  // Simulated voice playback: whenever AIVA sends a new text reply,
-  // treat it as the message currently being "read aloud" and show Pause/Stop controls.
-  useEffect(() => {
-    const lastAivaText = [...messages].reverse().find((m) => m.type === 'aiva-text');
-    if (lastAivaText) {
-      setPlayingMessageId(lastAivaText.id);
-      setIsVoicePaused(false);
-      setIsVoiceStopped(false);
-    }
-  }, [messages]);
-
-  const handleTogglePause = () => setIsVoicePaused((p) => !p);
-  const handleStopPlayback = () => {
-    setIsVoiceStopped(true);
-    setIsVoicePaused(false);
-  };
-  const handlePlayPlayback = () => setIsVoiceStopped(false);
 
   const addMessage = (msg) => setMessages((prev) => [...prev, { id: nextId(), time: new Date(), ...msg }]);
   const clearOptions = () => setMessages((prev) => prev.filter((m) => m.type !== 'aiva-options'));
@@ -1090,9 +1018,9 @@ export default function AskAivaMockup() {
     }, 800);
   };
 
-  const handleStationMapEntry = () => {
+  const handleStationMapEntry = (userText = 'Station Map') => {
     clearOptions();
-    addMessage({ type: 'user', text: 'Station Map' });
+    addMessage({ type: 'user', text: userText });
     respond(() => {
       addMessage({ type: 'aiva-text', text: 'Which station map would you like to see?' });
       addMessage({ type: 'aiva-options', options: ['Ang Mo Kio Bus Interchange', 'Punggol Coast MRT'] });
@@ -1127,9 +1055,9 @@ export default function AskAivaMockup() {
     }, 700);
   };
 
-  const handleJourneyStub = () => {
+  const handleJourneyStub = (userText = 'How do I get to…?') => {
     clearOptions();
-    addMessage({ type: 'user', text: 'How do I get to…?' });
+    addMessage({ type: 'user', text: userText });
     respond(() => {
       addMessage({ type: 'aiva-text', text: 'Sure — where would you like to go?' });
       setAwaitingDestination(true);
@@ -1228,26 +1156,12 @@ export default function AskAivaMockup() {
     addMessage({ type: 'user', text: opt });
     respond(() => {
       addMessage({ type: 'aiva-text', text: 'Sure. Let me bring you to the Contact Us form.' });
-      addMessage({ type: 'aiva-options', options: ['Contact Us form'] });
+      setShowExitWarning(true);
     }, 700);
   };
 
   const handleGiveFeedback = () => {
-    clearOptions();
-    addMessage({ type: 'user', text: 'Give feedback' });
-    respond(() => {
-      addMessage({ type: 'aiva-text', text: 'Sure. Would you like to:' });
-      addMessage({ type: 'aiva-options', options: ['Give feedback regarding AIVA service', 'Give feedback regarding SBS Transit services'] });
-    }, 700);
-  };
-
-  const handleAivaServiceFeedback = (opt) => {
-    clearOptions();
-    addMessage({ type: 'user', text: opt });
-    respond(() => {
-      addMessage({ type: 'aiva-text', text: 'How would you like to rate my service?' });
-      addMessage({ type: 'aiva-rating' });
-    }, 700);
+    handleContactUsRedirect('Give feedback');
   };
 
   const handleOption = (opt) => {
@@ -1262,7 +1176,6 @@ export default function AskAivaMockup() {
     if (opt === 'How do I go to Singapore Poly from 113 Bishan Street 12?') return handleJourneyFromOrigin(opt);
     if (opt === 'View Journey Plan' || opt === 'View Journey Map') return setScreen('journey');
     if (opt === 'Bus stops near me') return setScreen('nearby');
-    if (opt === 'Give feedback regarding AIVA service') return handleAivaServiceFeedback(opt);
     if (opt === 'Give feedback regarding SBS Transit services') return handleContactUsRedirect(opt);
     if (['Unable to answer my question', 'Response time was too long', 'Poor interface design', 'Other (please specify)'].includes(opt)) {
       return handleReasonSelect(opt);
@@ -1299,8 +1212,14 @@ export default function AskAivaMockup() {
     if (lower.includes('singapore poly')) {
       return handleJourneyFromCurrentLocation(text);
     }
-    if (lower.includes('nearest bus stop')) {
+    if (lower.includes('bus stop')) {
       return handleNearestBusStop(text);
+    }
+    if (lower.includes('station map') || lower.includes('wayfinding')) {
+      return handleStationMapEntry(text);
+    }
+    if (lower.includes('get to') || lower.includes('go to') || lower.includes('journey') || lower.includes('direction')) {
+      return handleJourneyStub(text);
     }
 
     addMessage({ type: 'user', text });
@@ -1358,175 +1277,182 @@ export default function AskAivaMockup() {
         ) : screen === 'browser' ? (
           <BrowserScreen onClose={() => setScreen('chat')} />
         ) : (
-          <>
-            {/* Header */}
-            <div className="shrink-0" style={{ background: GRADIENT }}>
-              <StatusBarRow />
-              <div
-                className="grid items-center px-4 pb-3 pt-1"
-                style={{ gridTemplateColumns: '1fr auto 1fr' }}
+        <>
+        {/* Header */}
+        <div className="shrink-0" style={{ background: GRADIENT }}>
+          <StatusBarRow />
+          <div
+            className="grid items-center px-4 pb-3 pt-1"
+            style={{ gridTemplateColumns: '1fr auto 1fr' }}
+          >
+            <div className="flex items-center justify-start">
+              <button
+                onClick={() => setMenuOpen(true)}
+                className="p-2 rounded-full transition shrink-0"
+                style={{ backgroundColor: 'rgba(255,255,255,0.12)' }}
+                aria-label="Open menu"
               >
-                <div className="flex items-center justify-start">
-                  <button
-                    onClick={() => setMenuOpen(true)}
-                    className="p-2 rounded-full transition shrink-0"
-                    style={{ backgroundColor: 'rgba(255,255,255,0.12)' }}
-                    aria-label="Open menu"
-                  >
-                    <Menu size={18} color="#fff" />
-                  </button>
-                </div>
-                <p className="text-white text-sm font-semibold text-center whitespace-nowrap">Ask AIVA</p>
-                <div />
+                <Menu size={18} color="#fff" />
+              </button>
+            </div>
+            <p className="text-white text-sm font-semibold text-center whitespace-nowrap">Ask AIVA</p>
+            <div />
+          </div>
+        </div>
+
+        {/* Disclaimer */}
+        <div className="px-4 py-1.5 shrink-0 border-b border-gray-100 bg-white text-left">
+          <p className="text-[10px] font-bold text-gray-500">Disclaimer:</p>
+          <p className="text-[10px] text-gray-400 leading-snug">
+            When using AIVA, you agree to our collection of the personal information you enter, as well as audio recordings.
+          </p>
+        </div>
+
+        {/* Chat area */}
+        <div
+          ref={scrollRef}
+          className="flex-1 overflow-y-auto px-3 py-4 space-y-3"
+          style={{ background: PAGE_GRADIENT }}
+        >
+          {/* AIVA intro row: avatar + name on the left, sound toggle on the right */}
+          <div className="flex items-center justify-between pb-1">
+            <div className="flex items-center gap-2">
+              <AivaPortrait size={56} />
+              <div className="leading-tight">
+                <p className="text-xs font-bold" style={{ color: PURPLE_DARK }}>AIVA</p>
+                <p className="text-[10px] text-gray-500">AI Virtual Assistant</p>
               </div>
             </div>
-
-            {/* Disclaimer */}
-            <div className="px-4 py-1.5 shrink-0 border-b border-gray-100 bg-white text-left">
-              <p className="text-[10px] font-bold text-gray-500">Disclaimer:</p>
-              <p className="text-[10px] text-gray-400 leading-snug">
-                When using AIVA, you agree to our collection of the personal information you enter, as well as audio recordings.
-              </p>
-            </div>
-
-            {/* Chat area */}
-            <div
-              ref={scrollRef}
-              className="flex-1 overflow-y-auto px-3 py-4 space-y-3"
-              style={{ background: PAGE_GRADIENT }}
+            <button
+              onClick={() => setSoundOn((s) => !s)}
+              className="flex items-center gap-1.5 pl-3 pr-2.5 py-2 rounded-full transition shrink-0"
+              style={{ backgroundColor: '#EFE3F5' }}
+              aria-label="Toggle sound"
             >
-              {/* AIVA intro row */}
-              <div className="flex items-center gap-2 pb-1">
-                <AivaPortrait size={56} />
-                <div className="leading-tight">
-                  <p className="text-xs font-bold" style={{ color: PURPLE_DARK }}>AIVA</p>
-                  <p className="text-[10px] text-gray-500">AI Virtual Assistant</p>
+              <span className="text-xs font-semibold" style={{ color: PURPLE_DARK }}>
+                {soundOn ? 'Sound On' : 'Sound Off'}
+              </span>
+              {soundOn ? <Volume2 size={17} color={PURPLE_DARK} /> : <VolumeX size={17} color={PURPLE_DARK} />}
+            </button>
+          </div>
+
+          {messages.map((msg) => (
+            <Message
+              key={msg.id}
+              msg={msg}
+              onOption={handleOption}
+              onRate={handleRate}
+              onEnlargeMap={setEnlargedMap}
+            />
+          ))}
+          {isTyping && <TypingBubble />}
+        </div>
+
+        {/* Give feedback link */}
+        {!isRecording && !isTranscribing && (
+          <div className="shrink-0 flex justify-end px-4 pt-2 bg-white">
+            <button onClick={handleGiveFeedback} className="text-xs underline text-gray-600 font-medium">
+              Give feedback
+            </button>
+          </div>
+        )}
+
+        {/* Input area */}
+        <div className="shrink-0 bg-white border-t border-gray-200 px-3 py-3">
+          {isRecording ? (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleCancelRecording}
+                className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                style={{ backgroundColor: '#F1F1F4', color: '#6B6B76' }}
+                aria-label="Cancel recording"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="flex-1 flex items-center justify-center gap-4">
+                <div className="flex items-end gap-1 h-8">
+                  {[10, 20, 28, 16, 24, 14, 22, 12].map((h, i) => (
+                    <span
+                      key={i}
+                      className="w-1 rounded-full"
+                      style={{
+                        backgroundColor: GRADIENT,
+                        height: h,
+                        animation: 'aivaWaveBar 0.9s ease-in-out infinite',
+                        animationDelay: `${i * 0.09}s`,
+                      }}
+                    />
+                  ))}
                 </div>
+                <span className="text-xs text-gray-500">Listening…</span>
               </div>
 
-              {messages.map((msg) => (
-                <Message
-                  key={msg.id}
-                  msg={msg}
-                  onOption={handleOption}
-                  onRate={handleRate}
-                  onEnlargeMap={setEnlargedMap}
-                  playingId={playingMessageId}
-                  isPaused={isVoicePaused}
-                  isStopped={isVoiceStopped}
-                  onTogglePause={handleTogglePause}
-                  onStopPlayback={handleStopPlayback}
-                  onPlayPlayback={handlePlayPlayback}
-                />
-              ))}
-              {isTyping && <TypingBubble />}
-            </div>
+              <button
+                onClick={handleStopRecording}
+                className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                style={{ background: GRADIENT }}
+                aria-label="Stop recording"
+              >
+                <span className="w-3 h-3 rounded-sm bg-white block" />
+              </button>
 
-            {/* Give feedback link */}
-            {!isRecording && !isTranscribing && (
-              <div className="shrink-0 flex justify-end px-4 pt-2 bg-white">
-                <button onClick={handleGiveFeedback} className="text-xs underline text-gray-600 font-medium">
-                  Give feedback
-                </button>
-              </div>
-            )}
-
-            {/* Input area */}
-            <div className="shrink-0 bg-white border-t border-gray-200 px-3 py-3">
-              {isRecording ? (
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={handleCancelRecording}
-                    className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-                    style={{ backgroundColor: '#F1F1F4', color: '#6B6B76' }}
-                    aria-label="Cancel recording"
-                  >
-                    <X size={18} />
-                  </button>
-
-                  <div className="flex-1 flex items-center justify-center gap-4">
-                    <div className="flex items-end gap-1 h-8">
-                      {[10, 20, 28, 16, 24, 14, 22, 12].map((h, i) => (
-                        <span
-                          key={i}
-                          className="w-1 rounded-full"
-                          style={{
-                            backgroundColor: GRADIENT,
-                            height: h,
-                            animation: 'aivaWaveBar 0.9s ease-in-out infinite',
-                            animationDelay: `${i * 0.09}s`,
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <span className="text-xs text-gray-500">Listening…</span>
-                  </div>
-
-                  <button
-                    onClick={handleStopRecording}
-                    className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
-                    style={{ background: GRADIENT }}
-                    aria-label="Stop recording"
-                  >
-                    <span className="w-3 h-3 rounded-sm bg-white block" />
-                  </button>
-
-                  <style>{`
+              <style>{`
                 @keyframes aivaWaveBar {
                   0%, 100% { transform: scaleY(0.4); }
                   50% { transform: scaleY(1); }
                 }
               `}</style>
-                </div>
-              ) : isTranscribing ? (
-                <TranscribingBar />
-              ) : (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                    placeholder={
-                      awaitingOtherFeedback
-                        ? 'Type your feedback…'
-                        : awaitingDestination
-                          ? 'Enter your destination…'
-                          : awaitingOriginReply
-                            ? "Reply 'yes' or enter an address…"
-                            : 'Ask AIVA anything…'
-                    }
-                    className="flex-1 rounded-full px-4 py-2.5 text-sm outline-none"
-                    style={{ backgroundColor: '#F1F1F4', color: '#1F2937' }}
-                  />
-                  <button
-                    onClick={handleStartRecording}
-                    className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition"
-                    style={{ backgroundColor: '#F1F1F4', color: '#6B6B76' }}
-                    aria-label="Voice input"
-                  >
-                    <Mic size={18} />
-                  </button>
-                  <button
-                    onClick={handleSend}
-                    disabled={!inputValue.trim()}
-                    className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition disabled:opacity-40"
-                    style={{ background: GRADIENT }}
-                    aria-label="Send message"
-                  >
-                    <Send size={16} color="#fff" />
-                  </button>
-                </div>
-              )}
             </div>
+          ) : isTranscribing ? (
+            <TranscribingBar />
+          ) : (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                placeholder={
+                  awaitingOtherFeedback
+                    ? 'Type your feedback…'
+                    : awaitingDestination
+                    ? 'Enter your destination…'
+                    : awaitingOriginReply
+                    ? "Reply 'yes' or enter an address…"
+                    : 'Ask AIVA anything…'
+                }
+                className="flex-1 rounded-full px-4 py-2.5 text-sm outline-none"
+                style={{ backgroundColor: '#F1F1F4', color: '#1F2937' }}
+              />
+              <button
+                onClick={handleStartRecording}
+                className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition"
+                style={{ backgroundColor: '#F1F1F4', color: '#6B6B76' }}
+                aria-label="Voice input"
+              >
+                <Mic size={18} />
+              </button>
+              <button
+                onClick={handleSend}
+                disabled={!inputValue.trim()}
+                className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition disabled:opacity-40"
+                style={{ background: GRADIENT }}
+                aria-label="Send message"
+              >
+                <Send size={16} color="#fff" />
+              </button>
+            </div>
+          )}
+        </div>
 
-            {showExitWarning && (
-              <ExitWarningModal onCancel={handleCancelExitWarning} onConfirm={handleConfirmExitWarning} />
-            )}
-            {enlargedMap && (
-              <EnlargedMapOverlay level={enlargedMap.level} station={enlargedMap.station} onClose={() => setEnlargedMap(null)} />
-            )}
-          </>
+        {showExitWarning && (
+          <ExitWarningModal onCancel={handleCancelExitWarning} onConfirm={handleConfirmExitWarning} />
+        )}
+        {enlargedMap && (
+          <EnlargedMapOverlay level={enlargedMap.level} station={enlargedMap.station} onClose={() => setEnlargedMap(null)} />
+        )}
+        </>
         )}
 
         <DrawerMenu open={menuOpen} onClose={() => setMenuOpen(false)} onSelect={handleMenuSelect} />
