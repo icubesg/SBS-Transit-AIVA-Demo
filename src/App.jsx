@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Volume2, VolumeX, Send, Mic, MapPin, Map, TrainFront, Ticket, Bus, Menu, Home, Wifi, Bell, Share2, Bookmark, ShoppingBag, Repeat, Mail, MessageCircle, Search, ChevronLeft, ChevronRight, ChevronDown, RefreshCw, Bike, Accessibility, Locate, ArrowLeft, Star, ExternalLink, Lock, MoreVertical, ZoomIn, Navigation, Clock, ShieldAlert, RotateCw, Footprints, ArrowRightLeft, Maximize2, SlidersHorizontal, Car, Circle, BatteryFull, SignalHigh, Info, GitFork, HelpCircle } from 'lucide-react';
+import { X, Volume2, VolumeX, Send, Mic, MapPin, Map, TrainFront, Ticket, Bus, Menu, Home, Wifi, Bell, Share2, Bookmark, ShoppingBag, Repeat, Mail, MessageCircle, Search, ChevronLeft, ChevronRight, ChevronDown, RefreshCw, Bike, Accessibility, Locate, ArrowLeft, Star, ExternalLink, Lock, MoreVertical, ZoomIn, Navigation, Clock, ShieldAlert, RotateCw, Footprints, ArrowRightLeft, Maximize2, SlidersHorizontal, Car, Circle, BatteryFull, SignalHigh, Info, GitFork, HelpCircle, AlertTriangle, CornerUpRight } from 'lucide-react';
 
 // ---- Color scheme (matches the quick-links reference) ----
 const PURPLE = '#6F2482';
@@ -402,6 +402,239 @@ function NearbyScreen({ onBack }) {
           <span className="text-[11px] text-gray-500">0.8 km</span>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ---- Bus stop arrival times — matches supplied Bus Stop screenshot ----
+const BUS_ARRIVALS = [
+  { number: '663', destination: 'Prince Edward Rd Stn Exit 2', loop: true },
+  { number: '804', destination: 'Yishun Int', etas: [{ status: 'Arriving', accessible: true }, { status: '8 min', accessible: true }] },
+  { number: '806', destination: 'Yishun Int', etas: [{ status: '3 min', accessible: true }, { status: '8 min', accessible: true }] },
+  { number: '807', destination: 'Yishun Int', etas: [{ status: '5 min', accessible: true }, { status: '10 min', accessible: true }] },
+  { number: '807A', destination: 'Khatib Stn Exit D', loop: true },
+  { number: '807B', destination: 'Jiemin Pr Sch', loop: true },
+  { number: '860', destination: 'Yio Chu Kang Int', etas: [{ status: 'Arriving', accessible: true }, { status: '26 min', accessible: true }] },
+];
+
+function InaccessibleWheelchairIcon() {
+  return (
+    <div className="relative w-4 h-4 flex items-center justify-center shrink-0">
+      <Accessibility size={15} color="#6B6B76" />
+      <div className="absolute w-5 h-[2px] bg-red-500 rotate-45 rounded-full" />
+    </div>
+  );
+}
+
+function BusStopLegend() {
+  return (
+    <div className="shrink-0 px-3 py-2.5" style={{ backgroundColor: '#EDEDEF' }}>
+      <div className="flex items-center justify-between text-center">
+        <div className="flex flex-col items-center gap-1 flex-1">
+          <InaccessibleWheelchairIcon />
+          <span className="text-[8px] text-gray-600 leading-tight">Wheelchair Inaccessible<br />Bus Stop</span>
+        </div>
+        <div className="flex flex-col items-center gap-1 flex-1">
+          <AlertTriangle size={15} color="#E8842C" />
+          <span className="text-[8px] text-gray-600 leading-tight">Bus Delay</span>
+        </div>
+        <div className="flex flex-col items-center gap-1 flex-1">
+          <CornerUpRight size={15} color="#2E9E4F" />
+          <span className="text-[8px] text-gray-600 leading-tight">Route<br />Diversion</span>
+        </div>
+      </div>
+      <div className="flex items-center justify-between text-center mt-2.5 pt-2.5" style={{ borderTop: '1px solid #DADADE' }}>
+        <div className="flex flex-col items-center gap-1 flex-1">
+          <Accessibility size={15} color="#6B6B76" />
+          <span className="text-[8px] text-gray-600 leading-tight">Wheelchair<br />Accessible</span>
+        </div>
+        <div className="flex flex-col items-center gap-1 flex-1">
+          <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: '#3EAA46' }} />
+          <span className="text-[8px] text-gray-600 leading-tight">Seats<br />Available</span>
+        </div>
+        <div className="flex flex-col items-center gap-1 flex-1">
+          <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: '#F2A93B' }} />
+          <span className="text-[8px] text-gray-600 leading-tight">Standing<br />Available</span>
+        </div>
+        <div className="flex flex-col items-center gap-1 flex-1">
+          <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: '#E14848' }} />
+          <span className="text-[8px] text-gray-600 leading-tight">Limited<br />Standing</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BusArrivalScreen({ onBack }) {
+  return (
+    <div className="flex flex-col h-full" style={{ backgroundColor: '#FAFAFC' }}>
+      {/* Header */}
+      <div className="shrink-0" style={{ background: GRADIENT }}>
+        <StatusBarRow />
+        <div className="flex items-center gap-3 px-4 pb-3 pt-1">
+          <button onClick={onBack} className="p-1 shrink-0" aria-label="Back to Ask AIVA">
+            <ArrowLeft size={20} color="#fff" />
+          </button>
+          <p className="text-white text-lg font-bold flex-1 text-center">Bus Stop 59409</p>
+          <Map size={19} color="#fff" className="shrink-0" />
+        </div>
+      </div>
+
+      {/* Street name + bike lots */}
+      <div className="flex items-center justify-between px-4 py-2 shrink-0" style={{ backgroundColor: '#26262A' }}>
+        <span className="text-xs font-medium text-white">Yishun Ring Rd</span>
+        <span className="flex items-center gap-1">
+          <span className="text-xs font-semibold text-white">00</span>
+          <Bike size={14} color="#B9B9C2" />
+        </span>
+      </div>
+
+      {/* Bus service list */}
+      <div className="flex-1 overflow-y-auto bg-white">
+        {BUS_ARRIVALS.map((b, i) => (
+          <div key={b.number} className="flex items-center justify-between gap-3 px-4 py-3" style={{ borderBottom: i < BUS_ARRIVALS.length - 1 ? '1px solid #EEEEF0' : 'none' }}>
+            <div className="min-w-0">
+              <p className="text-lg font-bold" style={{ color: PURPLE }}>{b.number}</p>
+              <p className="text-xs text-gray-500 truncate">To: {b.destination}</p>
+            </div>
+            {b.loop ? (
+              <RotateCw size={20} color={PURPLE} className="shrink-0" />
+            ) : (
+              <div className="flex flex-col gap-1.5 items-end shrink-0">
+                {b.etas.map((e, j) => (
+                  <div key={j} className="flex items-center gap-1.5">
+                    {e.accessible ? <Accessibility size={14} color="#6B6B76" /> : <InaccessibleWheelchairIcon />}
+                    <Bus size={15} color="#4B4B55" />
+                    <span className="text-sm font-semibold w-12 text-right" style={{ color: '#2E9E4F' }}>{e.status}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <BusStopLegend />
+    </div>
+  );
+}
+
+// ---- Specific bus service arrival + route map — matches supplied Service 806 screenshot ----
+const SERVICE_NEARBY_STOP = { code: '59469', name: 'Blk 419', street: 'Yishun Ave 11', etas: ['7 min', '12 min'] };
+const SERVICE_OTHER_STOPS = [
+  { code: '59591', name: 'Bet Blks 405/406', street: 'Yishun Ave 6' },
+  { code: '59601', name: 'Blk 391', street: 'Yishun Ave 6' },
+  { code: '59801', name: 'Blk 382C', street: 'Yishun Ave 6' },
+];
+
+function ServiceRouteMap({ serviceNumber, etaLabel }) {
+  return (
+    <div className="relative shrink-0 overflow-hidden" style={{ height: 260 }}>
+      <MapBackground />
+      <svg className="absolute inset-0" viewBox="0 0 400 400" preserveAspectRatio="xMidYMid slice" width="100%" height="100%">
+        <path
+          d="M35,110 L35,175 L140,175 C165,175 180,190 195,215 L245,290 C258,310 275,318 295,318 L335,318 C352,318 363,303 363,286 L363,175 C363,148 345,128 320,128 L262,128 C240,128 225,142 213,162 L192,205"
+          fill="none"
+          stroke={PURPLE}
+          strokeWidth="5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {[[35, 145], [95, 175], [175, 190], [222, 250], [290, 318], [345, 305], [363, 230], [332, 138], [262, 128], [202, 178]].map(([x, y], i) => (
+          <circle key={i} cx={x} cy={y} r="5" fill="#fff" stroke={PURPLE} strokeWidth="2.5" />
+        ))}
+        <circle cx="295" cy="318" r="7" fill="#2E7BE0" stroke="#fff" strokeWidth="2" />
+        <circle cx="265" cy="318" r="6" fill="#F2A93B" stroke="#fff" strokeWidth="2" />
+        <g transform="translate(150,268)">
+          <circle r="10" fill="#E14848" />
+          <text y="4" textAnchor="middle" fontSize="11" fontWeight="700" fill="#fff">H</text>
+        </g>
+        <text x="168" y="272" fontSize="13" fontWeight="700" fill="#D6335A">Khoo Teck Puat Hospital</text>
+      </svg>
+
+      <div className="absolute top-3 left-3 flex flex-col items-center">
+        <div
+          className="w-16 h-16 rounded-full flex flex-col items-center justify-center shadow-lg text-white border-2 border-white"
+          style={{ backgroundColor: PURPLE }}
+        >
+          <span className="flex items-center gap-0.5 text-[10px] font-bold">
+            <Bus size={11} /> {serviceNumber}
+          </span>
+          <span className="text-[11px] font-bold leading-none mt-0.5">{etaLabel}</span>
+        </div>
+      </div>
+
+      <button
+        className="absolute bottom-3 right-3 w-9 h-9 rounded-full bg-white shadow-md flex items-center justify-center"
+        aria-label="Locate me"
+      >
+        <Locate size={16} color={GRADIENT} />
+      </button>
+    </div>
+  );
+}
+
+function ServiceArrivalScreen({ serviceNumber = '163', etaLabel = '7 min', from = 'Yishun Int', to = 'Yishun Int', onBack }) {
+  return (
+    <div className="flex flex-col h-full" style={{ backgroundColor: '#FAFAFC' }}>
+      {/* Header */}
+      <div className="shrink-0" style={{ background: GRADIENT }}>
+        <StatusBarRow />
+        <div className="flex items-center gap-3 px-4 pb-3 pt-1">
+          <button onClick={onBack} className="p-1 shrink-0" aria-label="Back to Ask AIVA">
+            <ArrowLeft size={20} color="#fff" />
+          </button>
+          <p className="text-white text-lg font-bold flex-1 text-center">Service {serviceNumber}</p>
+          <Map size={19} color="#fff" className="shrink-0" />
+        </div>
+      </div>
+
+      <ServiceRouteMap serviceNumber={serviceNumber} etaLabel={etaLabel} />
+
+      {/* From / To bar */}
+      <div className="flex items-center gap-3 px-4 py-2.5 shrink-0" style={{ backgroundColor: '#1C1C1E' }}>
+        <ArrowRightLeft size={16} color="#fff" className="rotate-90 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-xs text-white truncate"><span className="font-semibold">From:</span> {from}</p>
+          <p className="text-xs text-white truncate"><span className="font-semibold">To:</span> {to}</p>
+        </div>
+        <Info size={18} color="#fff" className="shrink-0" />
+      </div>
+
+      {/* Stop list */}
+      <div className="flex-1 overflow-y-auto bg-white">
+        <div className="px-3 pt-3">
+          <span className="inline-block rounded-full px-3 py-1 text-xs font-semibold text-white" style={{ backgroundColor: PURPLE }}>
+            Nearby Bus Stop
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-3 px-4 py-3" style={{ backgroundColor: '#F3ECF5', borderBottom: '1px solid #EEEEF0' }}>
+          <div className="min-w-0">
+            <p className="text-sm font-bold" style={{ color: PURPLE }}>{SERVICE_NEARBY_STOP.code} - {SERVICE_NEARBY_STOP.name}</p>
+            <p className="text-xs text-gray-600 truncate">{SERVICE_NEARBY_STOP.street}</p>
+          </div>
+          <div className="flex flex-col gap-1.5 items-end shrink-0">
+            {SERVICE_NEARBY_STOP.etas.map((eta, j) => (
+              <div key={j} className="flex items-center gap-1.5">
+                <Accessibility size={14} color="#6B6B76" />
+                <Bus size={15} color="#4B4B55" />
+                <span className="text-sm font-semibold w-12 text-right" style={{ color: '#2E9E4F' }}>{eta}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        {SERVICE_OTHER_STOPS.map((s, i) => (
+          <div key={s.code} className="flex items-center justify-between gap-3 px-4 py-3" style={{ borderBottom: i < SERVICE_OTHER_STOPS.length - 1 ? '1px solid #EEEEF0' : 'none' }}>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-gray-800">{s.code} - {s.name}</p>
+              <p className="text-xs text-gray-500 truncate">{s.street}</p>
+            </div>
+            <RotateCw size={20} color={PURPLE} className="shrink-0" />
+          </div>
+        ))}
+      </div>
+
+      <BusStopLegend />
     </div>
   );
 }
@@ -943,7 +1176,7 @@ function Message({ msg, onOption, onRate, onEnlargeMap }) {
 }
 
 export default function AskAivaMockup() {
-  const [screen, setScreen] = useState('home'); // 'home' | 'chat' | 'journey' | 'nearby' | 'browser'
+  const [screen, setScreen] = useState('home'); // 'home' | 'chat' | 'journey' | 'nearby' | 'busArrival' | 'serviceArrival' | 'browser'
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -957,6 +1190,7 @@ export default function AskAivaMockup() {
   const [awaitingDestination, setAwaitingDestination] = useState(false);
   const [awaitingOriginReply, setAwaitingOriginReply] = useState(false);
   const [pendingDestination, setPendingDestination] = useState('');
+  const [pendingServiceNumber, setPendingServiceNumber] = useState('163');
   const [soundOn, setSoundOn] = useState(true);
   const scrollRef = useRef(null);
 
@@ -1052,6 +1286,25 @@ export default function AskAivaMockup() {
     respond(() => {
       addMessage({ type: 'aiva-text', text: 'Please follow the link to see bus stops near you.' });
       addMessage({ type: 'aiva-options', options: ['Bus stops near me'] });
+    }, 700);
+  };
+
+  const handleBusArrivalTimes = (userText = 'When is the next bus arriving?') => {
+    clearOptions();
+    addMessage({ type: 'user', text: userText });
+    respond(() => {
+      addMessage({ type: 'aiva-text', text: 'Please follow the link to see bus services near you and the arrival times.' });
+      addMessage({ type: 'aiva-options', options: ['Bus arrival times near me'] });
+    }, 700);
+  };
+
+  const handleServiceArrivalTime = (serviceNumber, userText) => {
+    clearOptions();
+    addMessage({ type: 'user', text: userText || `When is bus ${serviceNumber} arriving?` });
+    respond(() => {
+      addMessage({ type: 'aiva-text', text: `Please follow the link to see arrival time of service ${serviceNumber}.` });
+      addMessage({ type: 'aiva-options', options: [`Service ${serviceNumber} arrival times`] });
+      setPendingServiceNumber(serviceNumber);
     }, 700);
   };
 
@@ -1176,6 +1429,8 @@ export default function AskAivaMockup() {
     if (opt === 'How do I go to Singapore Poly from 113 Bishan Street 12?') return handleJourneyFromOrigin(opt);
     if (opt === 'View Journey Plan' || opt === 'View Journey Map') return setScreen('journey');
     if (opt === 'Bus stops near me') return setScreen('nearby');
+    if (opt === 'Bus arrival times near me') return setScreen('busArrival');
+    if (/^Service (.+) arrival times$/.test(opt)) return setScreen('serviceArrival');
     if (opt === 'Give feedback regarding SBS Transit services') return handleContactUsRedirect(opt);
     if (['Unable to answer my question', 'Response time was too long', 'Poor interface design', 'Other (please specify)'].includes(opt)) {
       return handleReasonSelect(opt);
@@ -1212,8 +1467,15 @@ export default function AskAivaMockup() {
     if (lower.includes('singapore poly')) {
       return handleJourneyFromCurrentLocation(text);
     }
+    const serviceMatch = text.match(/\b(?:bus|service)\s+(\d{1,4}[a-zA-Z]?)\b/i);
+    if (serviceMatch && !lower.includes('bus stop')) {
+      return handleServiceArrivalTime(serviceMatch[1].toUpperCase(), text);
+    }
     if (lower.includes('bus stop')) {
       return handleNearestBusStop(text);
+    }
+    if (lower.includes('next bus') || lower.includes('bus arriv') || lower.includes('bus service') || lower.includes('bus timing')) {
+      return handleBusArrivalTimes(text);
     }
     if (lower.includes('station map') || lower.includes('wayfinding')) {
       return handleStationMapEntry(text);
@@ -1274,6 +1536,10 @@ export default function AskAivaMockup() {
           />
         ) : screen === 'nearby' ? (
           <NearbyScreen onBack={() => setScreen('chat')} />
+        ) : screen === 'busArrival' ? (
+          <BusArrivalScreen onBack={() => setScreen('chat')} />
+        ) : screen === 'serviceArrival' ? (
+          <ServiceArrivalScreen serviceNumber={pendingServiceNumber} onBack={() => setScreen('chat')} />
         ) : screen === 'browser' ? (
           <BrowserScreen onClose={() => setScreen('chat')} />
         ) : (
