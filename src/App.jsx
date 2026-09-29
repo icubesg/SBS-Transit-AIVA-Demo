@@ -465,7 +465,7 @@ function BusStopLegend() {
   );
 }
 
-function BusArrivalScreen({ onBack }) {
+function BusArrivalScreen({ onBack, stopCode = '59409' }) {
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: '#FAFAFC' }}>
       {/* Header */}
@@ -475,7 +475,7 @@ function BusArrivalScreen({ onBack }) {
           <button onClick={onBack} className="p-1 shrink-0" aria-label="Back to Ask AIVA">
             <ArrowLeft size={20} color="#fff" />
           </button>
-          <p className="text-white text-lg font-bold flex-1 text-center">Bus Stop 59409</p>
+          <p className="text-white text-lg font-bold flex-1 text-center">Bus Stop {stopCode}</p>
           <Map size={19} color="#fff" className="shrink-0" />
         </div>
       </div>
@@ -1187,10 +1187,10 @@ export default function AskAivaMockup() {
   const [enlargedMap, setEnlargedMap] = useState(null);
   const [showExitWarning, setShowExitWarning] = useState(false);
   const [awaitingOtherFeedback, setAwaitingOtherFeedback] = useState(false);
-  const [awaitingDestination, setAwaitingDestination] = useState(false);
   const [awaitingOriginReply, setAwaitingOriginReply] = useState(false);
   const [pendingDestination, setPendingDestination] = useState('');
   const [pendingServiceNumber, setPendingServiceNumber] = useState('163');
+  const [pendingBusStopCode, setPendingBusStopCode] = useState('59409');
   const [soundOn, setSoundOn] = useState(true);
   const scrollRef = useRef(null);
 
@@ -1211,7 +1211,6 @@ export default function AskAivaMockup() {
     setIsTranscribing(false);
     setInputValue('');
     setAwaitingOtherFeedback(false);
-    setAwaitingDestination(false);
     setAwaitingOriginReply(false);
     setPendingDestination('');
   };
@@ -1308,68 +1307,79 @@ export default function AskAivaMockup() {
     }, 700);
   };
 
-  const handleJourneyStub = (userText = 'How do I get to…?') => {
+  // Demo-only invalid bus stop codes, so the "not found" flow is reachable
+  const INVALID_BUS_STOP_CODES = ['66666'];
+
+  const handleBusStopCode = (stopCode, userText) => {
     clearOptions();
-    addMessage({ type: 'user', text: userText });
+    addMessage({ type: 'user', text: userText || `What are the available bus services at bus stop ${stopCode}` });
+    const isValid = /^\d{4,6}$/.test(stopCode) && !INVALID_BUS_STOP_CODES.includes(stopCode);
     respond(() => {
-      addMessage({ type: 'aiva-text', text: 'Sure — where would you like to go?' });
-      setAwaitingDestination(true);
+      if (isValid) {
+        addMessage({ type: 'aiva-text', text: `Please follow the link to see bus services at bus stop ${stopCode}.` });
+        addMessage({ type: 'aiva-options', options: [`Bus stop ${stopCode} arrival times`] });
+        setPendingBusStopCode(stopCode);
+      } else {
+        addMessage({ type: 'aiva-text', text: "I couldn't find that bus stop code. Please check the code or enter the stop name." });
+        addMessage({ type: 'aiva-options', options: ['Bus stops near me'] });
+      }
     }, 700);
   };
 
-  const handleDestinationSubmitted = (destination) => {
-    addMessage({ type: 'user', text: destination });
-    setAwaitingDestination(false);
-    setPendingDestination(destination);
-    respond(() => {
-      addMessage({
-        type: 'aiva-text',
-        text: "Are you going from your current location or from another address? Reply 'yes' if you are going from your current location. Reply with the starting address if you are not.",
-      });
-      setAwaitingOriginReply(true);
-    }, 800);
+  // Parses free text like: How do I get to "Singapore Zoo" from "Marina Bay Sands"
+  // Also handles the destination-only form: How do I get to Singapore Zoo
+  const parseJourneyRequest = (text) => {
+    const clean = (s) =>
+      s
+        .trim()
+        .replace(/^["'“”‘’]+|["'“”‘’]+$/g, '')
+        .replace(/[?.!]+$/, '')
+        .trim();
+    const fromMatch = text.match(/(?:get|go)\s+to\s+(.+?)\s+from\s+(.+)$/i);
+    if (fromMatch) {
+      return { destination: clean(fromMatch[1]), origin: clean(fromMatch[2]) };
+    }
+    const toMatch = text.match(/(?:get|go)\s+to\s+(.+)$/i);
+    if (toMatch) {
+      return { destination: clean(toMatch[1]), origin: null };
+    }
+    return { destination: null, origin: null };
   };
 
-  const handleOriginReply = (reply) => {
-    addMessage({ type: 'user', text: reply });
-    setAwaitingOriginReply(false);
-    const destination = pendingDestination || 'your destination';
-    const isCurrentLocation = reply.trim().toLowerCase() === 'yes';
+  // Scenario A — origin and destination both provided in one message
+  const handleJourneyWithOrigin = (destination, origin, userText) => {
+    clearOptions();
+    addMessage({ type: 'user', text: userText });
     respond(() => {
-      if (isCurrentLocation) {
-        addMessage({ type: 'aiva-text', text: `To go to ${destination} from your current location, please follow the link to see step-by-step navigation.` });
-        addMessage({ type: 'aiva-options', options: ['View Journey Plan'] });
-        setJourneyOrigin('Current location');
-      } else {
-        addMessage({ type: 'aiva-text', text: `To go to ${destination} from ${reply}, please follow the link to see step-by-step navigation.` });
-        addMessage({ type: 'aiva-options', options: ['View Journey Map'] });
-        setJourneyOrigin(reply);
-      }
+      addMessage({ type: 'aiva-text', text: 'Sure, here is the route to your destination.' });
+      addMessage({ type: 'aiva-options', options: ['View my journey planner'] });
+      setJourneyOrigin(origin);
       setJourneyDestination(destination);
     }, 800);
   };
 
-  // Flow 3 — journey planning from current location
-  const handleJourneyFromCurrentLocation = (userText = 'How do I go to Singapore Poly?') => {
+  // Scenario B, step 1 — destination provided, origin unavailable
+  const handleJourneyStub = (userText, destination) => {
     clearOptions();
     addMessage({ type: 'user', text: userText });
+    setPendingDestination(destination || 'your destination');
     respond(() => {
-      addMessage({ type: 'aiva-text', text: 'To go to Singapore Polytechnic from your current location, please follow the link to see step-by-step navigation.' });
-      addMessage({ type: 'aiva-options', options: ['View Journey Plan'] });
-      setJourneyOrigin('Current location');
-      setJourneyDestination('Singapore Polytechnic');
-    }, 800);
+      addMessage({ type: 'aiva-text', text: 'Could you tell me where you are right now?' });
+      setAwaitingOriginReply(true);
+    }, 700);
   };
 
-  // Flow 4 — journey planning with a specified origin
-  const handleJourneyFromOrigin = (userText = 'How do I go to Singapore Poly from 113 Bishan Street 12?') => {
-    clearOptions();
-    addMessage({ type: 'user', text: userText });
+  // Scenario B, step 2 — user replies with their current location
+  const handleOriginReply = (reply) => {
+    addMessage({ type: 'user', text: reply });
+    setAwaitingOriginReply(false);
+    const destination = pendingDestination || 'your destination';
+    const origin = reply.trim();
     respond(() => {
-      addMessage({ type: 'aiva-text', text: 'To go to Singapore Polytechnic from 113 Bishan Street 12, please follow the link to see step-by-step navigation.' });
-      addMessage({ type: 'aiva-options', options: ['View Journey Map'] });
-      setJourneyOrigin('113 Bishan Street 12');
-      setJourneyDestination('Singapore Polytechnic');
+      addMessage({ type: 'aiva-text', text: 'Sure, here is the route to your destination.' });
+      addMessage({ type: 'aiva-options', options: ['View my journey planner'] });
+      setJourneyOrigin(origin);
+      setJourneyDestination(destination);
     }, 800);
   };
 
@@ -1424,12 +1434,14 @@ export default function AskAivaMockup() {
     if (opt === 'Punggol Coast MRT') return handlePunggolSelect();
     if (opt === 'Ang Mo Kio Bus Interchange') return handleAmkSelect();
     if (opt === 'Where is the nearest bus stop?') return handleNearestBusStop();
-    if (opt === 'How do I get to…?') return handleJourneyStub();
-    if (opt === 'How do I go to Singapore Poly?') return handleJourneyFromCurrentLocation(opt);
-    if (opt === 'How do I go to Singapore Poly from 113 Bishan Street 12?') return handleJourneyFromOrigin(opt);
-    if (opt === 'View Journey Plan' || opt === 'View Journey Map') return setScreen('journey');
+    if (opt === 'How do I get to…?') return handleJourneyStub(opt, null);
+    if (opt === 'View my journey planner') return setScreen('journey');
     if (opt === 'Bus stops near me') return setScreen('nearby');
-    if (opt === 'Bus arrival times near me') return setScreen('busArrival');
+    if (opt === 'Bus arrival times near me') {
+      setPendingBusStopCode('59409');
+      return setScreen('busArrival');
+    }
+    if (/^Bus stop (.+) arrival times$/.test(opt)) return setScreen('busArrival');
     if (/^Service (.+) arrival times$/.test(opt)) return setScreen('serviceArrival');
     if (opt === 'Give feedback regarding SBS Transit services') return handleContactUsRedirect(opt);
     if (['Unable to answer my question', 'Response time was too long', 'Poor interface design', 'Other (please specify)'].includes(opt)) {
@@ -1452,24 +1464,21 @@ export default function AskAivaMockup() {
       return;
     }
 
-    if (awaitingDestination) {
-      return handleDestinationSubmitted(text);
-    }
-
     if (awaitingOriginReply) {
       return handleOriginReply(text);
     }
 
     const lower = text.toLowerCase();
-    if (lower.includes('singapore poly') && lower.includes('bishan')) {
-      return handleJourneyFromOrigin(text);
-    }
-    if (lower.includes('singapore poly')) {
-      return handleJourneyFromCurrentLocation(text);
+    if (lower.includes('provide feedback') || lower.includes('give feedback') || lower.includes('leave feedback') || lower.includes('submit feedback') || lower.includes('complaint') || lower.includes('complain')) {
+      return handleContactUsRedirect(text);
     }
     const serviceMatch = text.match(/\b(?:bus|service)\s+(\d{1,4}[a-zA-Z]?)\b/i);
     if (serviceMatch && !lower.includes('bus stop')) {
       return handleServiceArrivalTime(serviceMatch[1].toUpperCase(), text);
+    }
+    const busStopCodeMatch = text.match(/\bbus stop\s+(\d{4,6})\b/i);
+    if (busStopCodeMatch) {
+      return handleBusStopCode(busStopCodeMatch[1], text);
     }
     if (lower.includes('bus stop')) {
       return handleNearestBusStop(text);
@@ -1480,8 +1489,18 @@ export default function AskAivaMockup() {
     if (lower.includes('station map') || lower.includes('wayfinding')) {
       return handleStationMapEntry(text);
     }
-    if (lower.includes('get to') || lower.includes('go to') || lower.includes('journey') || lower.includes('direction')) {
-      return handleJourneyStub(text);
+    if (lower.includes('get to') || lower.includes('go to')) {
+      const { destination, origin } = parseJourneyRequest(text);
+      if (destination && origin) {
+        return handleJourneyWithOrigin(destination, origin, text);
+      }
+      if (destination) {
+        return handleJourneyStub(text, destination);
+      }
+      return handleJourneyStub(text, null);
+    }
+    if (lower.includes('journey') || lower.includes('direction')) {
+      return handleJourneyStub(text, null);
     }
 
     addMessage({ type: 'user', text });
@@ -1537,7 +1556,7 @@ export default function AskAivaMockup() {
         ) : screen === 'nearby' ? (
           <NearbyScreen onBack={() => setScreen('chat')} />
         ) : screen === 'busArrival' ? (
-          <BusArrivalScreen onBack={() => setScreen('chat')} />
+          <BusArrivalScreen stopCode={pendingBusStopCode} onBack={() => setScreen('chat')} />
         ) : screen === 'serviceArrival' ? (
           <ServiceArrivalScreen serviceNumber={pendingServiceNumber} onBack={() => setScreen('chat')} />
         ) : screen === 'browser' ? (
@@ -1682,10 +1701,8 @@ export default function AskAivaMockup() {
                 placeholder={
                   awaitingOtherFeedback
                     ? 'Type your feedback…'
-                    : awaitingDestination
-                    ? 'Enter your destination…'
                     : awaitingOriginReply
-                    ? "Reply 'yes' or enter an address…"
+                    ? 'Enter your current location…'
                     : 'Ask AIVA anything…'
                 }
                 className="flex-1 rounded-full px-4 py-2.5 text-sm outline-none"
