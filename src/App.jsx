@@ -1101,6 +1101,53 @@ function Timestamp({ align }) {
   );
 }
 
+// Station map card — shows a brief "downloading from AIVA backend" state before
+// the map itself is revealed, so the map only loads once the "download" finishes.
+function StationMapCard({ msg, onEnlargeMap }) {
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setLoaded(true), 1300);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const { Map, Icon } = LEVEL_INFO[msg.level];
+  const station = msg.station || 'Punggol Coast MRT';
+
+  return (
+    <div className="flex flex-col items-start">
+      {loaded ? (
+        <button
+          onClick={() => onEnlargeMap({ level: msg.level, station })}
+          className="max-w-xs w-64 bg-white shadow-sm rounded-2xl overflow-hidden text-left relative active:scale-[0.98] transition"
+          aria-label="Tap to enlarge map"
+        >
+          <Map />
+          <span className="absolute top-2 right-2 flex items-center gap-1 bg-white/95 rounded-full px-2 py-1 shadow-sm">
+            <Maximize2 size={10} color={GRADIENT} />
+            <span className="text-[9px] font-semibold" style={{ color: GRADIENT }}>Tap to enlarge</span>
+          </span>
+          <div className="flex items-start gap-2 px-3 py-2 border-t border-gray-100">
+            <Icon size={14} color={PURPLE} className="mt-0.5 shrink-0" />
+            <div>
+              <p className="text-xs font-semibold text-gray-800">{msg.level} · {station}</p>
+              <p className="text-[11px] text-gray-500 leading-snug mt-0.5">{LEVEL_INFO[msg.level].note}</p>
+            </div>
+          </div>
+        </button>
+      ) : (
+        <div className="max-w-xs w-64 bg-white shadow-sm rounded-2xl overflow-hidden text-left" style={{ height: 200 }}>
+          <div className="flex flex-col items-center justify-center gap-2 h-full px-4">
+            <RefreshCw size={20} color={PURPLE} className="animate-spin" />
+            <p className="text-xs font-medium text-gray-500 text-center">Downloading {station} map…</p>
+          </div>
+        </div>
+      )}
+      <p className="text-[10px] text-gray-400 mt-1 pl-1">{formatTime(msg.time)}</p>
+    </div>
+  );
+}
+
 function Message({ msg, onOption, onRate, onEnlargeMap }) {
   if (msg.type === 'user') {
     return (
@@ -1141,31 +1188,7 @@ function Message({ msg, onOption, onRate, onEnlargeMap }) {
   }
 
   if (msg.type === 'aiva-image') {
-    const { Map, Icon } = LEVEL_INFO[msg.level];
-    const station = msg.station || 'Punggol Coast MRT';
-    return (
-      <div className="flex flex-col items-start">
-        <button
-          onClick={() => onEnlargeMap({ level: msg.level, station })}
-          className="max-w-xs w-64 bg-white shadow-sm rounded-2xl overflow-hidden text-left relative active:scale-[0.98] transition"
-          aria-label="Tap to enlarge map"
-        >
-          <Map />
-          <span className="absolute top-2 right-2 flex items-center gap-1 bg-white/95 rounded-full px-2 py-1 shadow-sm">
-            <Maximize2 size={10} color={GRADIENT} />
-            <span className="text-[9px] font-semibold" style={{ color: GRADIENT }}>Tap to enlarge</span>
-          </span>
-          <div className="flex items-start gap-2 px-3 py-2 border-t border-gray-100">
-            <Icon size={14} color={PURPLE} className="mt-0.5 shrink-0" />
-            <div>
-              <p className="text-xs font-semibold text-gray-800">{msg.level} · {station}</p>
-              <p className="text-[11px] text-gray-500 leading-snug mt-0.5">{LEVEL_INFO[msg.level].note}</p>
-            </div>
-          </div>
-        </button>
-        <p className="text-[10px] text-gray-400 mt-1 pl-1">{formatTime(msg.time)}</p>
-      </div>
-    );
+    return <StationMapCard msg={msg} onEnlargeMap={onEnlargeMap} />;
   }
 
   if (msg.type === 'aiva-rating') {
@@ -1186,11 +1209,19 @@ export default function AskAivaMockup() {
   const [journeyDestination, setJourneyDestination] = useState('Singapore Polytechnic');
   const [enlargedMap, setEnlargedMap] = useState(null);
   const [showExitWarning, setShowExitWarning] = useState(false);
+  const [showErrorBanner, setShowErrorBanner] = useState(false);
   const [awaitingOtherFeedback, setAwaitingOtherFeedback] = useState(false);
   const [awaitingOriginReply, setAwaitingOriginReply] = useState(false);
   const [pendingDestination, setPendingDestination] = useState('');
   const [pendingServiceNumber, setPendingServiceNumber] = useState('163');
   const [pendingBusStopCode, setPendingBusStopCode] = useState('59409');
+  const [awaitingServiceBusStop, setAwaitingServiceBusStop] = useState(false);
+  const [pendingServiceForStop, setPendingServiceForStop] = useState('');
+  // Demo-only toggle (rendered outside the phone frame) so a presenter can switch
+  // which service-arrival scenario free-text queries follow, without retyping.
+  // 'main' = Scenario 1 (always link straight to the arrival screen).
+  // 'deeplink3' = Scenario 2 (ask which bus stop, when one wasn't given).
+  const [scenarioMode, setScenarioMode] = useState('main');
   const [soundOn, setSoundOn] = useState(true);
   const scrollRef = useRef(null);
 
@@ -1213,6 +1244,9 @@ export default function AskAivaMockup() {
     setAwaitingOtherFeedback(false);
     setAwaitingOriginReply(false);
     setPendingDestination('');
+    setAwaitingServiceBusStop(false);
+    setPendingServiceForStop('');
+    setShowErrorBanner(false);
   };
 
   useEffect(() => {
@@ -1236,19 +1270,9 @@ export default function AskAivaMockup() {
     clearOptions();
     addMessage({ type: 'user', text: level });
     respond(() => {
-      addMessage({ type: 'aiva-text', text: `Here is the map of the Punggol Coast MRT ${level}.` });
+      addMessage({ type: 'aiva-text', text: `Here is the station map of Punggol Coast MRT Station, ${level}.` });
       addMessage({ type: 'aiva-image', level });
-      addMessage({ type: 'aiva-options', options: ['Search another station'] });
     }, 900);
-  };
-
-  const handleFollowUpOption = (opt) => {
-    clearOptions();
-    addMessage({ type: 'user', text: opt });
-    respond(() => {
-      addMessage({ type: 'aiva-text', text: 'Sure — which station would you like to look up next?' });
-      addMessage({ type: 'aiva-options', options: ['Ang Mo Kio Bus Interchange', 'Punggol Coast MRT'] });
-    }, 800);
   };
 
   const handleStationMapEntry = (userText = 'Station Map') => {
@@ -1260,22 +1284,21 @@ export default function AskAivaMockup() {
     }, 700);
   };
 
-  const handlePunggolSelect = () => {
+  const handlePunggolSelect = (userText = 'Punggol Coast MRT') => {
     clearOptions();
-    addMessage({ type: 'user', text: 'Punggol Coast MRT' });
+    addMessage({ type: 'user', text: userText });
     respond(() => {
-      addMessage({ type: 'aiva-text', text: 'Which level map would you like to view?' });
+      addMessage({ type: 'aiva-text', text: 'Which station level map would you like to view?' });
       addMessage({ type: 'aiva-options', options: ['Platform Level', 'Concourse Level', 'Upper Concourse Level'] });
     }, 700);
   };
 
-  const handleAmkSelect = () => {
+  const handleAmkSelect = (userText = 'Ang Mo Kio Bus Interchange') => {
     clearOptions();
-    addMessage({ type: 'user', text: 'Ang Mo Kio Bus Interchange' });
+    addMessage({ type: 'user', text: userText });
     respond(() => {
       addMessage({ type: 'aiva-text', text: 'Here is the map of the Ang Mo Kio Bus Interchange.' });
       addMessage({ type: 'aiva-image', level: 'Bus Interchange', station: 'Ang Mo Kio Bus Interchange' });
-      addMessage({ type: 'aiva-options', options: ['Search another station'] });
     }, 900);
   };
 
@@ -1297,14 +1320,47 @@ export default function AskAivaMockup() {
     }, 700);
   };
 
-  const handleServiceArrivalTime = (serviceNumber, userText) => {
-    clearOptions();
-    addMessage({ type: 'user', text: userText || `When is bus ${serviceNumber} arriving?` });
+  // Demo-only invalid service numbers, so the "not found" flow is reachable
+  const INVALID_SERVICE_NUMBERS = ['999'];
+
+  // Scenario 1 / final step of Scenario 2 — service (and its bus stop) are known
+  const respondWithServiceArrivalLink = (serviceNumber) => {
     respond(() => {
       addMessage({ type: 'aiva-text', text: `Please follow the link to see arrival time of service ${serviceNumber}.` });
       addMessage({ type: 'aiva-options', options: [`Service ${serviceNumber} arrival times`] });
       setPendingServiceNumber(serviceNumber);
     }, 700);
+  };
+
+  const handleServiceArrivalTime = (serviceNumber, userText, stopCode) => {
+    clearOptions();
+    addMessage({ type: 'user', text: userText || `When is bus ${serviceNumber} arriving?` });
+
+    if (INVALID_SERVICE_NUMBERS.includes(serviceNumber)) {
+      return respond(() => {
+        addMessage({ type: 'aiva-text', text: "I couldn't find that bus service. Please check the service number." });
+      }, 700);
+    }
+
+    // Scenario 1 — a bus stop was already given (or we're in "main" demo mode,
+    // which always resolves to the nearest stop from the user's location)
+    if (stopCode || scenarioMode === 'main') {
+      return respondWithServiceArrivalLink(serviceNumber);
+    }
+
+    // Scenario 2 (Deeplink 3) — no bus stop given, so ask for one first
+    respond(() => {
+      addMessage({ type: 'aiva-text', text: `Which bus stop are you taking bus ${serviceNumber} from?` });
+      setPendingServiceForStop(serviceNumber);
+      setAwaitingServiceBusStop(true);
+    }, 700);
+  };
+
+  const handleServiceBusStopReply = (reply) => {
+    addMessage({ type: 'user', text: reply });
+    setAwaitingServiceBusStop(false);
+    const serviceNumber = pendingServiceForStop || '163';
+    respondWithServiceArrivalLink(serviceNumber);
   };
 
   // Demo-only invalid bus stop codes, so the "not found" flow is reachable
@@ -1429,7 +1485,6 @@ export default function AskAivaMockup() {
 
   const handleOption = (opt) => {
     if (LEVEL_INFO[opt]) return handleLevelSelect(opt);
-    if (opt === 'Search another station') return handleFollowUpOption(opt);
     if (opt === 'Station Map') return handleStationMapEntry();
     if (opt === 'Punggol Coast MRT') return handlePunggolSelect();
     if (opt === 'Ang Mo Kio Bus Interchange') return handleAmkSelect();
@@ -1464,6 +1519,10 @@ export default function AskAivaMockup() {
       return;
     }
 
+    if (awaitingServiceBusStop) {
+      return handleServiceBusStopReply(text);
+    }
+
     if (awaitingOriginReply) {
       return handleOriginReply(text);
     }
@@ -1473,10 +1532,10 @@ export default function AskAivaMockup() {
       return handleContactUsRedirect(text);
     }
     const serviceMatch = text.match(/\b(?:bus|service)\s+(\d{1,4}[a-zA-Z]?)\b/i);
-    if (serviceMatch && !lower.includes('bus stop')) {
-      return handleServiceArrivalTime(serviceMatch[1].toUpperCase(), text);
-    }
     const busStopCodeMatch = text.match(/\bbus stop\s+(\d{4,6})\b/i);
+    if (serviceMatch) {
+      return handleServiceArrivalTime(serviceMatch[1].toUpperCase(), text, busStopCodeMatch ? busStopCodeMatch[1] : null);
+    }
     if (busStopCodeMatch) {
       return handleBusStopCode(busStopCodeMatch[1], text);
     }
@@ -1487,6 +1546,14 @@ export default function AskAivaMockup() {
       return handleBusArrivalTimes(text);
     }
     if (lower.includes('station map') || lower.includes('wayfinding')) {
+      // Scenario B — the station name was already given, so skip straight
+      // past "Which station map would you like to see?"
+      if (lower.includes('punggol')) {
+        return handlePunggolSelect(text);
+      }
+      if (lower.includes('ang mo kio') || lower.includes('amk')) {
+        return handleAmkSelect(text);
+      }
       return handleStationMapEntry(text);
     }
     if (lower.includes('get to') || lower.includes('go to')) {
@@ -1540,7 +1607,7 @@ export default function AskAivaMockup() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-100 p-6">
+    <div className="min-h-screen w-full flex items-center justify-center gap-10 bg-gray-100 p-6">
       <div
         className="relative bg-white overflow-hidden flex flex-col shadow-2xl"
         style={{ width: 375, height: 780, borderRadius: '36px', border: '8px solid #111827' }}
@@ -1592,6 +1659,27 @@ export default function AskAivaMockup() {
             When using AIVA, you agree to our collection of the personal information you enter, as well as audio recordings.
           </p>
         </div>
+
+        {/* Edge case — AIVA returned an unrecognized response or an error;
+            the chat stays intact and usable underneath the banner. */}
+        {showErrorBanner && (
+          <div
+            className="px-4 py-2 shrink-0 flex items-start gap-2"
+            style={{ backgroundColor: '#FDECEC', borderBottom: '1px solid #F8C9C9' }}
+          >
+            <AlertTriangle size={14} color="#D6335A" className="mt-0.5 shrink-0" />
+            <p className="text-xs text-left flex-1" style={{ color: '#B0233F' }}>
+              Sorry, something went wrong. Please try again.
+            </p>
+            <button
+              onClick={() => setShowErrorBanner(false)}
+              aria-label="Dismiss error"
+              className="shrink-0 p-0.5"
+            >
+              <X size={14} color="#B0233F" />
+            </button>
+          </div>
+        )}
 
         {/* Chat area */}
         <div
@@ -1703,6 +1791,8 @@ export default function AskAivaMockup() {
                     ? 'Type your feedback…'
                     : awaitingOriginReply
                     ? 'Enter your current location…'
+                    : awaitingServiceBusStop
+                    ? 'Enter your bus stop code…'
                     : 'Ask AIVA anything…'
                 }
                 className="flex-1 rounded-full px-4 py-2.5 text-sm outline-none"
@@ -1739,6 +1829,59 @@ export default function AskAivaMockup() {
         )}
 
         <DrawerMenu open={menuOpen} onClose={() => setMenuOpen(false)} onSelect={handleMenuSelect} />
+      </div>
+
+      {/* Demo-only control, outside the phone/app UI — lets a presenter switch which
+          service-arrival scenario a free-text query like "When is bus 163 arriving"
+          follows, without retyping the message. */}
+      <div className="flex flex-col gap-3 select-none">
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Main Scenarios</p>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={() => setScenarioMode('main')}
+            className="text-left px-4 py-2.5 rounded-lg text-sm font-medium transition border"
+            style={
+              scenarioMode === 'main'
+                ? { backgroundColor: PURPLE, color: '#fff', borderColor: PURPLE }
+                : { backgroundColor: '#fff', color: '#4B4B55', borderColor: '#E5E5EA' }
+            }
+          >
+            Main Scenario
+            <span className="block text-xs font-normal opacity-80 mt-0.5">Service arrival links straight to the screen</span>
+          </button>
+          <button
+            onClick={() => setScenarioMode('deeplink3')}
+            className="text-left px-4 py-2.5 rounded-lg text-sm font-medium transition border"
+            style={
+              scenarioMode === 'deeplink3'
+                ? { backgroundColor: PURPLE, color: '#fff', borderColor: PURPLE }
+                : { backgroundColor: '#fff', color: '#4B4B55', borderColor: '#E5E5EA' }
+            }
+          >
+            Deeplink 3 · Scenario 2
+            <span className="block text-xs font-normal opacity-80 mt-0.5">AIVA asks which bus stop first</span>
+          </button>
+        </div>
+        <p className="text-xs text-gray-400 max-w-[220px] leading-relaxed">
+          Try: <span className="font-medium text-gray-500">&ldquo;When is bus 163 arriving&rdquo;</span> (no stop) to see the two scenarios differ, or add &ldquo;at bus stop 67019&rdquo; to skip straight to the link either way. Try bus 999 for the invalid-service reply.
+        </p>
+
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mt-3">Edge Case</p>
+        <button
+          onClick={() => { setScreen('chat'); setShowErrorBanner(true); }}
+          className="text-left px-4 py-2.5 rounded-lg text-sm font-medium transition border"
+          style={
+            showErrorBanner
+              ? { backgroundColor: '#D6335A', color: '#fff', borderColor: '#D6335A' }
+              : { backgroundColor: '#fff', color: '#4B4B55', borderColor: '#E5E5EA' }
+          }
+        >
+          Unrecognized response / error
+          <span className="block text-xs font-normal opacity-80 mt-0.5">Shows the error banner — chat stays intact</span>
+        </button>
+        <p className="text-xs text-gray-400 max-w-[220px] leading-relaxed">
+          Simulates AIVA returning a response the app doesn&apos;t recognize, or an error. The banner sits at the top of the chat; the conversation underneath stays fully usable, and it can be dismissed with the ✕.
+        </p>
       </div>
     </div>
   );
