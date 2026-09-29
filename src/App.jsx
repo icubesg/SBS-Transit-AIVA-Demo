@@ -1439,6 +1439,40 @@ export default function AskAivaMockup() {
     }, 800);
   };
 
+  // Demo-only: MRT stations not operated by SBS Transit, so the "not found" flow is reachable
+  const INVALID_MRT_STATIONS = ['clementi'];
+  const isKnownMrtStation = (station) => {
+    const s = (station || '').trim().toLowerCase();
+    return s.length > 0 && !INVALID_MRT_STATIONS.some((invalid) => s.includes(invalid));
+  };
+
+  // Alternative transport options at a named station — the button is a
+  // display-only affordance for this mockup, it doesn't need to link anywhere.
+  const handleAlternativeTransport = (station, userText) => {
+    clearOptions();
+    addMessage({ type: 'user', text: userText });
+    respond(() => {
+      if (!isKnownMrtStation(station)) {
+        return addMessage({ type: 'aiva-text', text: "I couldn't find that MRT station. Please check the station name or enter its station code." });
+      }
+      addMessage({ type: 'aiva-text', text: `Sure — here are the alternative transport options available at ${station}.` });
+      addMessage({ type: 'aiva-options', options: ['View alternative transport'] });
+    }, 700);
+  };
+
+  // Bridging bus location at a named station — same display-only button pattern.
+  const handleBridgingBusLocation = (station, userText) => {
+    clearOptions();
+    addMessage({ type: 'user', text: userText });
+    respond(() => {
+      if (!isKnownMrtStation(station)) {
+        return addMessage({ type: 'aiva-text', text: "I couldn't find that MRT station. Please check the station name or enter its station code." });
+      }
+      addMessage({ type: 'aiva-text', text: `Sure — here is the bridging bus location at ${station}.` });
+      addMessage({ type: 'aiva-options', options: ['View bridging bus location'] });
+    }, 700);
+  };
+
   // Flow 6/7 — rating and feedback reasons
   const handleRate = (msgId, stars) => {
     setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, selected: stars } : m)));
@@ -1530,6 +1564,19 @@ export default function AskAivaMockup() {
     const lower = text.toLowerCase();
     if (lower.includes('provide feedback') || lower.includes('give feedback') || lower.includes('leave feedback') || lower.includes('submit feedback') || lower.includes('complaint') || lower.includes('complain')) {
       return handleContactUsRedirect(text);
+    }
+    // These two are checked before the generic bus-service/bus-arrival matching
+    // below, since phrasing like "bridging bus services" would otherwise be
+    // caught by the "bus service" keyword meant for regular bus arrival times.
+    if (lower.includes('alternative transport') || lower.includes('alternate transport')) {
+      const stationMatch = text.match(/\bat\s+(.+?)[\?\.!]*$/i);
+      const station = stationMatch ? stationMatch[1].trim() : 'this station';
+      return handleAlternativeTransport(station, text);
+    }
+    if (lower.includes('bridging bus')) {
+      const stationMatch = text.match(/\bat\s+(.+?)[\?\.!]*$/i);
+      const station = stationMatch ? stationMatch[1].trim() : 'this station';
+      return handleBridgingBusLocation(station, text);
     }
     const serviceMatch = text.match(/\b(?:bus|service)\s+(\d{1,4}[a-zA-Z]?)\b/i);
     const busStopCodeMatch = text.match(/\bbus stop\s+(\d{4,6})\b/i);
