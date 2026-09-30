@@ -942,6 +942,7 @@ function MapBackground() {
 }
 
 function HomeScreen({ onOpenMenu, onOpenAiva }) {
+  const [showAivaLauncher, setShowAivaLauncher] = useState(true);
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -971,7 +972,10 @@ function HomeScreen({ onOpenMenu, onOpenAiva }) {
       </div>
 
       {/* Map */}
-      <div className="relative flex-1 overflow-hidden">
+      <div
+        className="relative flex-1 overflow-hidden"
+        onClick={() => { if (!showAivaLauncher) setShowAivaLauncher(true); }}
+      >
         <MapBackground />
 
         {MAP_PINS.map((p, i) => (
@@ -987,22 +991,31 @@ function HomeScreen({ onOpenMenu, onOpenAiva }) {
           <Locate size={16} color={GRADIENT} />
         </button>
 
-        {/* Floating Ask AIVA launcher */}
-        <button
-          onClick={onOpenAiva}
-          className="absolute flex items-center gap-2"
-          style={{ bottom: '28%', right: '10%' }}
-        >
-          <span className="bg-white rounded-full px-3 py-1.5 shadow-md text-xs font-medium text-gray-700 whitespace-nowrap">
-            Ask AIVA
-          </span>
-          <span className="relative">
-            <AivaPortrait size={44} />
-            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-gray-500 flex items-center justify-center">
-              <X size={9} color="#fff" />
+        {/* Floating Ask AIVA launcher — tap the badge to dismiss it, tap
+            anywhere else on the map to bring it back. */}
+        {showAivaLauncher && (
+          <button
+            onClick={onOpenAiva}
+            className="absolute flex items-center gap-2"
+            style={{ bottom: '28%', right: '10%' }}
+            aria-label="Ask AIVA"
+          >
+            <span className="bg-white rounded-full px-3 py-1.5 shadow-md text-xs font-medium text-gray-700 whitespace-nowrap">
+              Ask AIVA
             </span>
-          </span>
-        </button>
+            <span className="relative">
+              <AivaPortrait size={44} />
+              <span
+                onClick={(e) => { e.stopPropagation(); setShowAivaLauncher(false); }}
+                role="button"
+                aria-label="Hide Ask AIVA icon"
+                className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-gray-500 flex items-center justify-center active:scale-90 transition"
+              >
+                <X size={9} color="#fff" />
+              </span>
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Nearby nav bar */}
