@@ -761,8 +761,8 @@ function LineBadge({ code }) {
   const color = LINE_COLORS[prefix] || '#8A8A93';
   return (
     <span
-      className="inline-flex items-center justify-center rounded text-[9px] font-bold text-white px-1.5 py-0.5 mr-1 mb-1 shrink-0"
-      style={{ backgroundColor: color }}
+      className="inline-flex items-center justify-center rounded font-bold text-white mr-1 mb-1 shrink-0"
+      style={{ backgroundColor: color, fontSize: 8, padding: '2px 4px', lineHeight: 1.1 }}
     >
       {code}
     </span>
@@ -822,35 +822,37 @@ function AlternativeTransportScreen({ station = 'Serangoon MRT', onBack }) {
 
         {/* Table — fixed percentage widths (not Tailwind arbitrary flex-[n]
             classes, which this renderer doesn't reliably pick up) so every
-            row's columns line up exactly under the header. */}
+            row's columns line up exactly under the header. Line badges get
+            their own column instead of wrapping under the destination name. */}
         <div>
-          <div className="flex items-stretch text-white text-xs font-bold" style={{ backgroundColor: '#9E9EA6' }}>
-            <div style={{ flex: '0 0 42%', padding: '8px 12px' }}>Going to</div>
-            <div style={{ flex: '0 0 12%', padding: '8px 4px', textAlign: 'center' }}>Exit</div>
-            <div style={{ flex: '0 0 18%', padding: '8px 4px', textAlign: 'center', lineHeight: 1.2 }}>Bus<br />Stop</div>
-            <div style={{ flex: '0 0 28%', padding: '8px', lineHeight: 1.2 }}>Bus<br />Services</div>
+          <div className="flex items-stretch text-white font-bold" style={{ backgroundColor: '#9E9EA6', fontSize: 10 }}>
+            <div style={{ flex: '0 0 28%', padding: '7px 8px' }}>Going to</div>
+            <div style={{ flex: '0 0 22%', padding: '7px 4px' }}>Line</div>
+            <div style={{ flex: '0 0 10%', padding: '7px 2px', textAlign: 'center' }}>Exit</div>
+            <div style={{ flex: '0 0 16%', padding: '7px 2px', textAlign: 'center', lineHeight: 1.15 }}>Bus<br />Stop</div>
+            <div style={{ flex: '0 0 24%', padding: '7px 4px', lineHeight: 1.15 }}>Bus<br />Services</div>
           </div>
           {ALT_TRANSPORT_ROWS.map((r, i) => (
             <div
               key={r.to}
-              className="flex items-stretch text-sm"
-              style={{ backgroundColor: i % 2 === 0 ? '#E7E7EA' : '#fff' }}
+              className="flex items-stretch"
+              style={{ backgroundColor: i % 2 === 0 ? '#E7E7EA' : '#fff', fontSize: 11 }}
             >
-              <div style={{ flex: '0 0 42%', padding: '10px 12px' }}>
+              <div style={{ flex: '0 0 28%', padding: '8px 8px' }}>
                 <p className="font-serif text-gray-900 leading-snug">{r.to}</p>
-                <div className="flex flex-wrap mt-1">
-                  {r.lines.map((l) => <LineBadge key={l} code={l} />)}
-                </div>
               </div>
-              <div style={{ flex: '0 0 12%', padding: '10px 4px', textAlign: 'center' }} className="font-serif text-gray-900">
+              <div style={{ flex: '0 0 22%', padding: '8px 4px' }} className="flex flex-wrap items-start content-start">
+                {r.lines.map((l) => <LineBadge key={l} code={l} />)}
+              </div>
+              <div style={{ flex: '0 0 10%', padding: '8px 2px', textAlign: 'center' }} className="font-serif text-gray-900">
                 {r.exit}
               </div>
-              <div style={{ flex: '0 0 18%', padding: '10px 4px' }} className="flex items-start justify-center">
-                <span className="rounded text-[10px] font-bold text-white px-1.5 py-1" style={{ backgroundColor: '#2E9DB0' }}>
+              <div style={{ flex: '0 0 16%', padding: '8px 2px' }} className="flex items-start justify-center">
+                <span className="rounded font-bold text-white px-1 py-0.5" style={{ backgroundColor: '#2E9DB0', fontSize: 9 }}>
                   {r.stop}
                 </span>
               </div>
-              <div style={{ flex: '0 0 28%', padding: '10px 8px' }} className="font-serif text-gray-900 leading-snug">
+              <div style={{ flex: '0 0 24%', padding: '8px 4px' }} className="font-serif text-gray-900 leading-snug">
                 {r.services}
               </div>
             </div>
