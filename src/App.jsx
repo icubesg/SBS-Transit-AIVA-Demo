@@ -14,6 +14,13 @@ const JP_PEACH = 'rgba(255,255,255,0.28)';
 const JP_PEACH_TEXT = 'rgba(255,255,255,0.85)';
 const LINE_NS = '#E1251B';
 const LINE_EW = '#009645';
+const LINE_NE = '#9900AA';
+const LINE_CC = '#FA9E0D';
+const LINE_DT = '#005EC4';
+const LINE_TE = '#9D5B25';
+// Keyed by MRT/LRT line prefix, for coloring the small line-code badges on the
+// "alternative transport" designated-bus-stop table.
+const LINE_COLORS = { NS: LINE_NS, EW: LINE_EW, NE: LINE_NE, CC: LINE_CC, CE: LINE_CC, DT: LINE_DT, TE: LINE_TE };
 
 // ---- Phone status bar (time, signal, wifi, battery) ----
 function StatusBarRow({ dark = false }) {
@@ -639,6 +646,221 @@ function ServiceArrivalScreen({ serviceNumber = '163', etaLabel = '7 min', from 
   );
 }
 
+// ---- Bridging bus location — station vicinity map with a highlighted pick-up point ----
+function StationVicinityMap({ station }) {
+  return (
+    <svg viewBox="0 0 400 620" preserveAspectRatio="xMidYMid slice" width="100%" height="100%">
+      {/* land base */}
+      <rect width="400" height="620" fill="#E9F0E3" />
+
+      {/* city blocks */}
+      {[
+        { x: 14, y: 40, w: 150, h: 120 },
+        { x: 230, y: 30, w: 150, h: 95 },
+        { x: 20, y: 215, w: 115, h: 110 },
+        { x: 170, y: 230, w: 95, h: 90 },
+        { x: 290, y: 220, w: 100, h: 130 },
+        { x: 30, y: 370, w: 160, h: 85 },
+        { x: 230, y: 390, w: 150, h: 150 },
+      ].map((b, i) => (
+        <rect key={i} x={b.x} y={b.y} width={b.w} height={b.h} rx="4" fill="#C9C3D6" opacity="0.55" />
+      ))}
+
+      {/* roads */}
+      <rect x="0" y="175" width="400" height="14" fill="#fff" />
+      <rect x="0" y="355" width="400" height="12" fill="#fff" />
+      <rect x="183" y="0" width="14" height="620" fill="#fff" />
+      <rect x="0" y="0" width="12" height="620" fill="#fff" opacity="0.7" />
+
+      {/* MRT line + station */}
+      <rect x="187" y="0" width="7" height="620" fill="#2E7BE0" opacity="0.7" />
+      <circle cx="190" cy="182" r="22" fill="#fff" stroke={PURPLE} strokeWidth="3" />
+      <TrainFront x="178" y="170" width="24" height="24" color={PURPLE} />
+      <text x="190" y="222" fontSize="12" fontWeight="700" textAnchor="middle" fill={PURPLE_DARK}>
+        {station}
+      </text>
+
+      {/* building labels */}
+      <text x="89" y="100" fontSize="9" textAnchor="middle" fill="#6B6578">Shopping Centre</text>
+      <text x="305" y="78" fontSize="9" textAnchor="middle" fill="#6B6578">Office Tower</text>
+      <text x="77" y="270" fontSize="9" textAnchor="middle" fill="#6B6578">Hotel</text>
+      <text x="217" y="277" fontSize="9" textAnchor="middle" fill="#6B6578">Community Club</text>
+      <text x="340" y="285" fontSize="9" textAnchor="middle" fill="#6B6578">Residences</text>
+      <text x="110" y="415" fontSize="9" textAnchor="middle" fill="#6B6578">Heritage Place</text>
+      <text x="305" y="465" fontSize="9" textAnchor="middle" fill="#6B6578">Park</text>
+
+      {/* exits */}
+      {[
+        { cx: 150, cy: 175, label: 'A' },
+        { cx: 230, cy: 175, label: 'B' },
+        { cx: 150, cy: 189, label: 'C' },
+        { cx: 230, cy: 189, label: 'D' },
+      ].map((e, i) => (
+        <g key={i}>
+          <circle cx={e.cx} cy={e.cy} r="9" fill="#111114" />
+          <text x={e.cx} y={e.cy + 3.5} fontSize="9" fontWeight="700" textAnchor="middle" fill="#fff">{e.label}</text>
+        </g>
+      ))}
+
+      {/* bridging bus pick-up point — the highlighted marker for this screen */}
+      <g transform="translate(300, 190)">
+        <circle r="18" fill="#E8842C" stroke="#fff" strokeWidth="3" />
+        <Bus x="-10" y="-10" width="20" height="20" color="#fff" />
+      </g>
+      <rect x="236" y="213" width="128" height="34" rx="8" fill="#fff" stroke="#E8842C" strokeWidth="1.5" />
+      <text x="300" y="227" fontSize="9" fontWeight="700" textAnchor="middle" fill="#E8842C">Bridging Bus</text>
+      <text x="300" y="239" fontSize="8" textAnchor="middle" fill="#8A8491">Pick-up Point</text>
+
+      {/* compass */}
+      <g transform="translate(360,40)">
+        <circle r="16" fill="#FFFFFF" opacity="0.9" />
+        <path d="M0,-10 L4,0 L0,10 L-4,0 Z" fill="#6B6B76" />
+        <text x="0" y="-20" fontSize="9" fill="#6B6B76" textAnchor="middle">N</text>
+      </g>
+    </svg>
+  );
+}
+
+function BridgingBusLocationScreen({ station = 'Serangoon MRT', onBack }) {
+  return (
+    <div className="flex flex-col h-full" style={{ backgroundColor: '#FAFAFC' }}>
+      {/* Header */}
+      <div className="shrink-0" style={{ background: GRADIENT }}>
+        <StatusBarRow />
+        <div className="flex items-center gap-3 px-4 pb-3 pt-1">
+          <button onClick={onBack} className="p-1 shrink-0" aria-label="Back to Ask AIVA">
+            <ArrowLeft size={20} color="#fff" />
+          </button>
+          <p className="text-white text-lg font-bold flex-1 text-center truncate">{station}</p>
+          <Bus size={19} color="#fff" className="shrink-0" />
+        </div>
+      </div>
+
+      {/* Subtitle strip */}
+      <div className="flex items-center justify-center gap-1.5 px-4 py-1.5 shrink-0" style={{ backgroundColor: '#26262A' }}>
+        <MapPin size={11} color="#E8842C" />
+        <span className="text-xs font-medium text-white">Bridging Bus Location</span>
+      </div>
+
+      {/* Map */}
+      <div className="relative flex-1 overflow-hidden">
+        <StationVicinityMap station={station} />
+      </div>
+
+      {/* Drag handle, matches the supplied street-map reference */}
+      <div className="shrink-0 flex items-center justify-center py-2 bg-white">
+        <div className="w-24 h-1 rounded-full bg-gray-800" />
+      </div>
+    </div>
+  );
+}
+
+// ---- Alternative transport options — designated-bus-stop table, matches supplied screenshot ----
+function LineBadge({ code }) {
+  const prefix = (code.match(/^[A-Za-z]+/) || [''])[0];
+  const color = LINE_COLORS[prefix] || '#8A8A93';
+  return (
+    <span
+      className="inline-flex items-center justify-center rounded text-[9px] font-bold text-white px-1.5 py-0.5 mr-1 mb-1 shrink-0"
+      style={{ backgroundColor: color }}
+    >
+      {code}
+    </span>
+  );
+}
+
+const ALT_TRANSPORT_ROWS = [
+  { to: 'Bayfront', lines: ['DT16', 'CE1'], exit: 'C', stop: '01119', services: '133' },
+  { to: 'Bishan', lines: ['NS17', 'CC15'], exit: 'D', stop: '01541', services: '57' },
+  { to: 'Botanic Gardens', lines: ['CC19', 'DT9'], exit: 'D', stop: '01541', services: '48' },
+  { to: 'Chinatown', lines: ['NE4', 'DT19'], exit: 'C', stop: '01119', services: '2, 12, 12e*, 33' },
+  { to: 'Clarke Quay', lines: ['NE5'], exit: 'C', stop: '01119', services: '2, 12, 12e*, 33' },
+  { to: 'Downtown', lines: ['DT17'], exit: 'C', stop: '01119', services: '133' },
+  { to: 'Esplanade', lines: ['CC3'], exit: 'C', stop: '01119', services: '130, 133' },
+  { to: 'Farrer Road', lines: ['CC20'], exit: 'D', stop: '01541', services: '48' },
+  { to: 'Holland Village', lines: ['CC21'], exit: 'D', stop: '01541', services: '48' },
+  { to: 'Little India', lines: ['NE7', 'DT12'], exit: 'D', stop: '01541', services: '48, 57' },
+  { to: 'Marina Bay', lines: ['NS27', 'TE20', 'CE2'], exit: 'C', stop: '01119', services: '133' },
+  { to: 'Newton', lines: ['NS21', 'DT11'], exit: 'D', stop: '01541', services: '48' },
+  { to: 'Novena', lines: ['NS20'], exit: 'D', stop: '01541', services: '57' },
+  { to: 'one-North', lines: ['CC23'], exit: 'C', stop: '01119', services: '33' },
+  { to: 'Outram Park', lines: ['EW16', 'NE3', 'TE17'], exit: 'C', stop: '01119', services: '2, 12, 12e*, 33' },
+  { to: 'Prince Edward Road', lines: ['CC32'], exit: 'C', stop: '01119', services: '130, 133' },
+  { to: 'Promenade', lines: ['DT15', 'CC4'], exit: 'C', stop: '01119', services: '133, 960, 960e*' },
+  { to: 'Raffles Place', lines: ['EW14', 'NS26'], exit: 'C', stop: '01119', services: '130' },
+  { to: 'Redhill', lines: ['EW18'], exit: 'C', stop: '01119', services: '33' },
+  { to: 'Rochor', lines: ['DT13'], exit: 'D', stop: '01541', services: '48, 57' },
+  { to: 'Shenton Way', lines: ['TE19'], exit: 'C', stop: '01119', services: '130, 133' },
+  { to: 'Stevens', lines: ['DT10', 'TE11'], exit: 'D', stop: '01541', services: '48' },
+];
+
+function AlternativeTransportScreen({ station = 'Serangoon MRT', onBack }) {
+  return (
+    <div className="flex flex-col h-full" style={{ backgroundColor: '#fff' }}>
+      {/* Header */}
+      <div className="shrink-0" style={{ background: GRADIENT }}>
+        <StatusBarRow />
+        <div className="flex items-center gap-3 px-4 pb-3 pt-1">
+          <button onClick={onBack} className="p-1 shrink-0" aria-label="Back to Ask AIVA">
+            <ArrowLeft size={20} color="#fff" />
+          </button>
+          <p className="text-white text-lg font-bold flex-1 text-center truncate">{station}</p>
+          <div className="w-5 shrink-0" />
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        {/* Title + designated bus stop notes */}
+        <div className="px-4 pt-4 pb-3">
+          <p className="text-center text-lg font-serif text-gray-900">Bus services at designated bus stops</p>
+          <div className="mt-3 text-[13px] text-gray-800 leading-relaxed">
+            <p>Bus Stop 3 : 01119, Aft {station} Exit C, Victoria St</p>
+            <p>Bus Stop 6 : 01541, {station} Exit D, Rochor Rd</p>
+            <p className="font-bold mt-1">Note : * Operates on selected days and / or times</p>
+          </div>
+        </div>
+
+        {/* Table — fixed percentage widths (not Tailwind arbitrary flex-[n]
+            classes, which this renderer doesn't reliably pick up) so every
+            row's columns line up exactly under the header. */}
+        <div>
+          <div className="flex items-stretch text-white text-xs font-bold" style={{ backgroundColor: '#9E9EA6' }}>
+            <div style={{ flex: '0 0 42%', padding: '8px 12px' }}>Going to</div>
+            <div style={{ flex: '0 0 12%', padding: '8px 4px', textAlign: 'center' }}>Exit</div>
+            <div style={{ flex: '0 0 18%', padding: '8px 4px', textAlign: 'center', lineHeight: 1.2 }}>Bus<br />Stop</div>
+            <div style={{ flex: '0 0 28%', padding: '8px', lineHeight: 1.2 }}>Bus<br />Services</div>
+          </div>
+          {ALT_TRANSPORT_ROWS.map((r, i) => (
+            <div
+              key={r.to}
+              className="flex items-stretch text-sm"
+              style={{ backgroundColor: i % 2 === 0 ? '#E7E7EA' : '#fff' }}
+            >
+              <div style={{ flex: '0 0 42%', padding: '10px 12px' }}>
+                <p className="font-serif text-gray-900 leading-snug">{r.to}</p>
+                <div className="flex flex-wrap mt-1">
+                  {r.lines.map((l) => <LineBadge key={l} code={l} />)}
+                </div>
+              </div>
+              <div style={{ flex: '0 0 12%', padding: '10px 4px', textAlign: 'center' }} className="font-serif text-gray-900">
+                {r.exit}
+              </div>
+              <div style={{ flex: '0 0 18%', padding: '10px 4px' }} className="flex items-start justify-center">
+                <span className="rounded text-[10px] font-bold text-white px-1.5 py-1" style={{ backgroundColor: '#2E9DB0' }}>
+                  {r.stop}
+                </span>
+              </div>
+              <div style={{ flex: '0 0 28%', padding: '10px 8px' }} className="font-serif text-gray-900 leading-snug">
+                {r.services}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ---- Star rating control (Screen 6.2) ----
 function StarRating({ onSelect, selected }) {
   const [hover, setHover] = useState(0);
@@ -1212,7 +1434,7 @@ function Message({ msg, onOption, onRate, onEnlargeMap }) {
 }
 
 export default function AskAivaMockup() {
-  const [screen, setScreen] = useState('home'); // 'home' | 'chat' | 'journey' | 'nearby' | 'busArrival' | 'serviceArrival' | 'browser'
+  const [screen, setScreen] = useState('home'); // 'home' | 'chat' | 'journey' | 'nearby' | 'busArrival' | 'serviceArrival' | 'bridgingBusLocation' | 'alternativeTransport' | 'browser'
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -1228,6 +1450,8 @@ export default function AskAivaMockup() {
   const [pendingDestination, setPendingDestination] = useState('');
   const [pendingServiceNumber, setPendingServiceNumber] = useState('163');
   const [pendingBusStopCode, setPendingBusStopCode] = useState('59409');
+  const [pendingBridgingBusStation, setPendingBridgingBusStation] = useState('Serangoon MRT');
+  const [pendingAlternativeTransportStation, setPendingAlternativeTransportStation] = useState('Serangoon MRT');
   const [awaitingServiceBusStop, setAwaitingServiceBusStop] = useState(false);
   const [pendingServiceForStop, setPendingServiceForStop] = useState('');
   // Demo-only toggle (rendered outside the phone frame) so a presenter can switch
@@ -1470,6 +1694,7 @@ export default function AskAivaMockup() {
       }
       addMessage({ type: 'aiva-text', text: `Sure — here are the alternative transport options available at ${station}.` });
       addMessage({ type: 'aiva-options', options: ['View alternative transport'] });
+      setPendingAlternativeTransportStation(station);
     }, 700);
   };
 
@@ -1483,6 +1708,7 @@ export default function AskAivaMockup() {
       }
       addMessage({ type: 'aiva-text', text: `Sure — here is the bridging bus location at ${station}.` });
       addMessage({ type: 'aiva-options', options: ['View bridging bus location'] });
+      setPendingBridgingBusStation(station);
     }, 700);
   };
 
@@ -1545,6 +1771,8 @@ export default function AskAivaMockup() {
     }
     if (/^Bus stop (.+) arrival times$/.test(opt)) return setScreen('busArrival');
     if (/^Service (.+) arrival times$/.test(opt)) return setScreen('serviceArrival');
+    if (opt === 'View bridging bus location') return setScreen('bridgingBusLocation');
+    if (opt === 'View alternative transport') return setScreen('alternativeTransport');
     if (opt === 'Give feedback regarding SBS Transit services') return handleContactUsRedirect(opt);
     if (['Unable to answer my question', 'Response time was too long', 'Poor interface design', 'Other (please specify)'].includes(opt)) {
       return handleReasonSelect(opt);
@@ -1686,6 +1914,10 @@ export default function AskAivaMockup() {
           <BusArrivalScreen stopCode={pendingBusStopCode} onBack={() => setScreen('chat')} />
         ) : screen === 'serviceArrival' ? (
           <ServiceArrivalScreen serviceNumber={pendingServiceNumber} onBack={() => setScreen('chat')} />
+        ) : screen === 'bridgingBusLocation' ? (
+          <BridgingBusLocationScreen station={pendingBridgingBusStation} onBack={() => setScreen('chat')} />
+        ) : screen === 'alternativeTransport' ? (
+          <AlternativeTransportScreen station={pendingAlternativeTransportStation} onBack={() => setScreen('chat')} />
         ) : screen === 'browser' ? (
           <BrowserScreen onClose={() => setScreen('chat')} />
         ) : (
