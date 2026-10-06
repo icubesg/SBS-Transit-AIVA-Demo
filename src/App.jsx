@@ -528,13 +528,16 @@ function BusArrivalScreen({ onBack, stopCode = '59409' }) {
 
 // ---- Specific bus service arrival + route map — matches supplied Service 806 screenshot ----
 const SERVICE_NEARBY_STOP = { code: '59469', name: 'Blk 419', street: 'Yishun Ave 11', etas: ['7 min', '12 min'] };
+// Demo-only: services with no stop near the user — their screen shows the route
+// without a pinned stop, ETA badge or "Nearby Bus Stop" section.
+const NO_NEARBY_STOP_SERVICES = ['960'];
 const SERVICE_OTHER_STOPS = [
   { code: '59591', name: 'Bet Blks 405/406', street: 'Yishun Ave 6' },
   { code: '59601', name: 'Blk 391', street: 'Yishun Ave 6' },
   { code: '59801', name: 'Blk 382C', street: 'Yishun Ave 6' },
 ];
 
-function ServiceRouteMap({ serviceNumber, etaLabel }) {
+function ServiceRouteMap({ serviceNumber, etaLabel, hasNearbyStop = true }) {
   return (
     <div className="relative shrink-0 overflow-hidden" style={{ height: 260 }}>
       <MapBackground />
@@ -550,8 +553,12 @@ function ServiceRouteMap({ serviceNumber, etaLabel }) {
         {[[35, 145], [95, 175], [175, 190], [222, 250], [290, 318], [345, 305], [363, 230], [332, 138], [262, 128], [202, 178]].map(([x, y], i) => (
           <circle key={i} cx={x} cy={y} r="5" fill="#fff" stroke={PURPLE} strokeWidth="2.5" />
         ))}
-        <circle cx="295" cy="318" r="7" fill="#2E7BE0" stroke="#fff" strokeWidth="2" />
-        <circle cx="265" cy="318" r="6" fill="#F2A93B" stroke="#fff" strokeWidth="2" />
+        {hasNearbyStop && (
+          <>
+            <circle cx="295" cy="318" r="7" fill="#2E7BE0" stroke="#fff" strokeWidth="2" />
+            <circle cx="265" cy="318" r="6" fill="#F2A93B" stroke="#fff" strokeWidth="2" />
+          </>
+        )}
         <g transform="translate(150,268)">
           <circle r="10" fill="#E14848" />
           <text y="4" textAnchor="middle" fontSize="11" fontWeight="700" fill="#fff">H</text>
@@ -559,17 +566,19 @@ function ServiceRouteMap({ serviceNumber, etaLabel }) {
         <text x="168" y="272" fontSize="13" fontWeight="700" fill="#D6335A">Khoo Teck Puat Hospital</text>
       </svg>
 
-      <div className="absolute top-3 left-3 flex flex-col items-center">
-        <div
-          className="w-16 h-16 rounded-full flex flex-col items-center justify-center shadow-lg text-white border-2 border-white"
-          style={{ backgroundColor: PURPLE }}
-        >
-          <span className="flex items-center gap-0.5 text-[10px] font-bold">
-            <Bus size={11} /> {serviceNumber}
-          </span>
-          <span className="text-[11px] font-bold leading-none mt-0.5">{etaLabel}</span>
+      {hasNearbyStop && (
+        <div className="absolute top-3 left-3 flex flex-col items-center">
+          <div
+            className="w-16 h-16 rounded-full flex flex-col items-center justify-center shadow-lg text-white border-2 border-white"
+            style={{ backgroundColor: PURPLE }}
+          >
+            <span className="flex items-center gap-0.5 text-[10px] font-bold">
+              <Bus size={11} /> {serviceNumber}
+            </span>
+            <span className="text-[11px] font-bold leading-none mt-0.5">{etaLabel}</span>
+          </div>
         </div>
-      </div>
+      )}
 
       <button
         className="absolute bottom-3 right-3 w-9 h-9 rounded-full bg-white shadow-md flex items-center justify-center"
@@ -581,7 +590,7 @@ function ServiceRouteMap({ serviceNumber, etaLabel }) {
   );
 }
 
-function ServiceArrivalScreen({ serviceNumber = '163', etaLabel = '7 min', from = 'Yishun Int', to = 'Yishun Int', onBack }) {
+function ServiceArrivalScreen({ serviceNumber = '163', etaLabel = '7 min', from = 'Yishun Int', to = 'Yishun Int', hasNearbyStop = true, onBack }) {
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: '#FAFAFC' }}>
       {/* Header */}
@@ -596,7 +605,7 @@ function ServiceArrivalScreen({ serviceNumber = '163', etaLabel = '7 min', from 
         </div>
       </div>
 
-      <ServiceRouteMap serviceNumber={serviceNumber} etaLabel={etaLabel} />
+      <ServiceRouteMap serviceNumber={serviceNumber} etaLabel={etaLabel} hasNearbyStop={hasNearbyStop} />
 
       {/* From / To bar */}
       <div className="flex items-center gap-3 px-4 py-2.5 shrink-0" style={{ backgroundColor: '#1C1C1E' }}>
@@ -610,28 +619,36 @@ function ServiceArrivalScreen({ serviceNumber = '163', etaLabel = '7 min', from 
 
       {/* Stop list */}
       <div className="flex-1 overflow-y-auto bg-white">
-        <div className="px-3 pt-3">
-          <span className="inline-block rounded-full px-3 py-1 text-xs font-semibold text-white" style={{ backgroundColor: PURPLE }}>
-            Nearby Bus Stop
-          </span>
-        </div>
-        <div className="flex items-center justify-between gap-3 px-4 py-3" style={{ backgroundColor: '#F3ECF5', borderBottom: '1px solid #EEEEF0' }}>
-          <div className="min-w-0">
-            <p className="text-sm font-bold" style={{ color: PURPLE }}>{SERVICE_NEARBY_STOP.code} - {SERVICE_NEARBY_STOP.name}</p>
-            <p className="text-xs text-gray-600 truncate">{SERVICE_NEARBY_STOP.street}</p>
-          </div>
-          <div className="flex flex-col gap-1.5 items-end shrink-0">
-            {SERVICE_NEARBY_STOP.etas.map((eta, j) => (
-              <div key={j} className="flex items-center gap-1.5">
-                <Accessibility size={14} color="#6B6B76" />
-                <Bus size={15} color="#4B4B55" />
-                <span className="text-sm font-semibold w-12 text-right" style={{ color: '#2E9E4F' }}>{eta}</span>
+        {hasNearbyStop ? (
+          <>
+            <div className="px-3 pt-3">
+              <span className="inline-block rounded-full px-3 py-1 text-xs font-semibold text-white" style={{ backgroundColor: PURPLE }}>
+                Nearby Bus Stop
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-3 px-4 py-3" style={{ backgroundColor: '#F3ECF5', borderBottom: '1px solid #EEEEF0' }}>
+              <div className="min-w-0">
+                <p className="text-sm font-bold" style={{ color: PURPLE }}>{SERVICE_NEARBY_STOP.code} - {SERVICE_NEARBY_STOP.name}</p>
+                <p className="text-xs text-gray-600 truncate">{SERVICE_NEARBY_STOP.street}</p>
               </div>
-            ))}
+              <div className="flex flex-col gap-1.5 items-end shrink-0">
+                {SERVICE_NEARBY_STOP.etas.map((eta, j) => (
+                  <div key={j} className="flex items-center gap-1.5">
+                    <Accessibility size={14} color="#6B6B76" />
+                    <Bus size={15} color="#4B4B55" />
+                    <span className="text-sm font-semibold w-12 text-right" style={{ color: '#2E9E4F' }}>{eta}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="px-4 py-2 text-xs text-gray-500" style={{ backgroundColor: '#F4F4F6', borderBottom: '1px solid #EEEEF0' }}>
+            No bus stop for this service near you — showing the full route.
           </div>
-        </div>
-        {SERVICE_OTHER_STOPS.map((s, i) => (
-          <div key={s.code} className="flex items-center justify-between gap-3 px-4 py-3" style={{ borderBottom: i < SERVICE_OTHER_STOPS.length - 1 ? '1px solid #EEEEF0' : 'none' }}>
+        )}
+        {(hasNearbyStop ? SERVICE_OTHER_STOPS : [SERVICE_NEARBY_STOP, ...SERVICE_OTHER_STOPS]).map((s, i, arr) => (
+          <div key={s.code} className="flex items-center justify-between gap-3 px-4 py-3" style={{ borderBottom: i < arr.length - 1 ? '1px solid #EEEEF0' : 'none' }}>
             <div className="min-w-0">
               <p className="text-sm font-bold text-gray-800">{s.code} - {s.name}</p>
               <p className="text-xs text-gray-500 truncate">{s.street}</p>
@@ -1915,7 +1932,7 @@ export default function AskAivaMockup() {
         ) : screen === 'busArrival' ? (
           <BusArrivalScreen stopCode={pendingBusStopCode} onBack={() => setScreen('chat')} />
         ) : screen === 'serviceArrival' ? (
-          <ServiceArrivalScreen serviceNumber={pendingServiceNumber} onBack={() => setScreen('chat')} />
+          <ServiceArrivalScreen serviceNumber={pendingServiceNumber} hasNearbyStop={!NO_NEARBY_STOP_SERVICES.includes(pendingServiceNumber)} onBack={() => setScreen('chat')} />
         ) : screen === 'bridgingBusLocation' ? (
           <BridgingBusLocationScreen station={pendingBridgingBusStation} onBack={() => setScreen('chat')} />
         ) : screen === 'alternativeTransport' ? (
@@ -2125,42 +2142,9 @@ export default function AskAivaMockup() {
         <DrawerMenu open={menuOpen} onClose={() => setMenuOpen(false)} onSelect={handleMenuSelect} />
       </div>
 
-      {/* Demo-only control, outside the phone/app UI — lets a presenter switch which
-          service-arrival scenario a free-text query like "When is bus 163 arriving"
-          follows, without retyping the message. */}
+      {/* Demo-only control, outside the phone/app UI. */}
       <div className="flex flex-col gap-3 select-none">
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Main Scenarios</p>
-        <div className="flex flex-col gap-2">
-          <button
-            onClick={() => setScenarioMode('main')}
-            className="text-left px-4 py-2.5 rounded-lg text-sm font-medium transition border"
-            style={
-              scenarioMode === 'main'
-                ? { backgroundColor: PURPLE, color: '#fff', borderColor: PURPLE }
-                : { backgroundColor: '#fff', color: '#4B4B55', borderColor: '#E5E5EA' }
-            }
-          >
-            Main Scenario
-            <span className="block text-xs font-normal opacity-80 mt-0.5">Service arrival links straight to the screen</span>
-          </button>
-          <button
-            onClick={() => setScenarioMode('deeplink3')}
-            className="text-left px-4 py-2.5 rounded-lg text-sm font-medium transition border"
-            style={
-              scenarioMode === 'deeplink3'
-                ? { backgroundColor: PURPLE, color: '#fff', borderColor: PURPLE }
-                : { backgroundColor: '#fff', color: '#4B4B55', borderColor: '#E5E5EA' }
-            }
-          >
-            Deeplink 3 · Scenario 2
-            <span className="block text-xs font-normal opacity-80 mt-0.5">AIVA asks which bus stop first</span>
-          </button>
-        </div>
-        <p className="text-xs text-gray-400 max-w-[220px] leading-relaxed">
-          Try: <span className="font-medium text-gray-500">&ldquo;When is bus 163 arriving&rdquo;</span> (no stop) to see the two scenarios differ, or add &ldquo;at bus stop 67019&rdquo; to skip straight to the link either way. Try bus 999 for the invalid-service reply.
-        </p>
-
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mt-3">Edge Case</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Edge Case</p>
         <button
           onClick={() => { setScreen('chat'); setShowErrorBanner(true); }}
           className="text-left px-4 py-2.5 rounded-lg text-sm font-medium transition border"
