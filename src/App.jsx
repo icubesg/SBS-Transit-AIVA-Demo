@@ -590,7 +590,9 @@ function ServiceRouteMap({ serviceNumber, etaLabel, hasNearbyStop = true }) {
   );
 }
 
-function ServiceArrivalScreen({ serviceNumber = '163', etaLabel = '7 min', from = 'Yishun Int', to = 'Yishun Int', hasNearbyStop = true, onBack }) {
+function ServiceArrivalScreen({ serviceNumber = '163', etaLabel = '7 min', from = 'Yishun Int', to = 'Yishun Int', hasNearbyStop = true, pinnedStopCode = '', onBack }) {
+  const pinnedStop = pinnedStopCode ? { code: pinnedStopCode, name: 'Selected stop', street: 'Yishun Ave 2', etas: ['4 min', '11 min'] } : null;
+  const nearbyStop = pinnedStop || SERVICE_NEARBY_STOP;
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: '#FAFAFC' }}>
       {/* Header */}
@@ -623,16 +625,16 @@ function ServiceArrivalScreen({ serviceNumber = '163', etaLabel = '7 min', from 
           <>
             <div className="px-3 pt-3">
               <span className="inline-block rounded-full px-3 py-1 text-xs font-semibold text-white" style={{ backgroundColor: PURPLE }}>
-                Nearby Bus Stop
+                {pinnedStop ? 'Selected Bus Stop' : 'Nearby Bus Stop'}
               </span>
             </div>
             <div className="flex items-center justify-between gap-3 px-4 py-3" style={{ backgroundColor: '#F3ECF5', borderBottom: '1px solid #EEEEF0' }}>
               <div className="min-w-0">
-                <p className="text-sm font-bold" style={{ color: PURPLE }}>{SERVICE_NEARBY_STOP.code} - {SERVICE_NEARBY_STOP.name}</p>
-                <p className="text-xs text-gray-600 truncate">{SERVICE_NEARBY_STOP.street}</p>
+                <p className="text-sm font-bold" style={{ color: PURPLE }}>{nearbyStop.code} - {nearbyStop.name}</p>
+                <p className="text-xs text-gray-600 truncate">{nearbyStop.street}</p>
               </div>
               <div className="flex flex-col gap-1.5 items-end shrink-0">
-                {SERVICE_NEARBY_STOP.etas.map((eta, j) => (
+                {nearbyStop.etas.map((eta, j) => (
                   <div key={j} className="flex items-center gap-1.5">
                     <Accessibility size={14} color="#6B6B76" />
                     <Bus size={15} color="#4B4B55" />
@@ -1478,6 +1480,7 @@ export default function AskAivaMockup() {
   // 'main' = Scenario 1 (always link straight to the arrival screen).
   // 'deeplink3' = Scenario 2 (ask which bus stop, when one wasn't given).
   const [scenarioMode, setScenarioMode] = useState('main');
+  const [pendingServiceStop, setPendingServiceStop] = useState('');
   const [soundOn, setSoundOn] = useState(true);
   const scrollRef = useRef(null);
 
@@ -1531,12 +1534,22 @@ export default function AskAivaMockup() {
     }, 900);
   };
 
-  const handleStationMapEntry = (userText = 'Station Map') => {
+  // Replacing a travel card — a plain text answer, no button.
+  const handleReplaceTravelCard = (userText) => {
     clearOptions();
     addMessage({ type: 'user', text: userText });
     respond(() => {
-      addMessage({ type: 'aiva-text', text: 'Which station map would you like to see?' });
-      addMessage({ type: 'aiva-options', options: ['Ang Mo Kio Bus Interchange', 'Punggol Coast MRT'] });
+      addMessage({ type: 'aiva-text', text: 'You can replace your travel card at the SimplyGo office counter. The staff will assist you further.' });
+    }, 700);
+  };
+
+  // Station / interchange maps are not offered through AIVA, whether or not a
+  // station was named, so every wayfinding request gets the same reply.
+  const handleStationMapEntry = (userText = 'Show me the station map') => {
+    clearOptions();
+    addMessage({ type: 'user', text: userText });
+    respond(() => {
+      addMessage({ type: 'aiva-text', text: 'Station and interchange maps are not available through AIVA.' });
     }, 700);
   };
 
@@ -1580,11 +1593,14 @@ export default function AskAivaMockup() {
   const INVALID_SERVICE_NUMBERS = ['999'];
 
   // Scenario 1 / final step of Scenario 2 — service (and its bus stop) are known
-  const respondWithServiceArrivalLink = (serviceNumber) => {
+  const respondWithServiceArrivalLink = (serviceNumber, stopCode = '') => {
     respond(() => {
-      addMessage({ type: 'aiva-text', text: `Please follow the link to see arrival time of service ${serviceNumber}.` });
+      addMessage({ type: 'aiva-text', text: stopCode
+        ? `Please follow the link to see arrival time of service ${serviceNumber} at bus stop ${stopCode}.`
+        : `Please follow the link to see arrival time of service ${serviceNumber}.` });
       addMessage({ type: 'aiva-options', options: [`Service ${serviceNumber} arrival times`] });
       setPendingServiceNumber(serviceNumber);
+      setPendingServiceStop(stopCode);
     }, 700);
   };
 
@@ -1600,11 +1616,20 @@ export default function AskAivaMockup() {
 
     // Scenario 1 — a bus stop was already given (or we're in "main" demo mode,
     // which always resolves to the nearest stop from the user's location)
-    if (stopCode || scenarioMode === 'main') {
+    // Scenario B — user-provided stop: pinned on the service screen
+    if (stopCode) {
+      return respondWithServiceArrivalLink(serviceNumber, stopCode);
+    }
+    // Scenario A — "arrival time of bus X": nearest stop from current location
+    // Scenario C — no stop given ("arrival time of bus X" / "bus X arriving?"):
+    // go straight to the link; screen pins nearest stop, or route only if none within 1 km
+    return respondWithServiceArrivalLink(serviceNumber);
+    // eslint-disable-next-line no-unreachable
+    if (false) {
       return respondWithServiceArrivalLink(serviceNumber);
     }
 
-    // Scenario 2 (Deeplink 3) — no bus stop given, so ask for one first
+    // Scenario C — "When is bus X arriving?": ask for the bus stop first
     respond(() => {
       addMessage({ type: 'aiva-text', text: `Which bus stop are you taking bus ${serviceNumber} from?` });
       setPendingServiceForStop(serviceNumber);
@@ -1709,10 +1734,10 @@ export default function AskAivaMockup() {
     addMessage({ type: 'user', text: userText });
     respond(() => {
       if (!isKnownMrtStation(station)) {
-        return addMessage({ type: 'aiva-text', text: "I couldn't find that MRT station. Please check the station name or enter its station code." });
+        return addMessage({ type: 'aiva-text', text: "Sorry, I can only provide bridging bus and alternative bus services information for affected stations operated by SBS Transit." });
       }
       addMessage({ type: 'aiva-text', text: `Sure — here are the alternative transport options available at ${station}.` });
-      addMessage({ type: 'aiva-options', options: ['View alternative transport'] });
+      addMessage({ type: 'aiva-options', options: ['View alternative transport options'] });
       setPendingAlternativeTransportStation(station);
     }, 700);
   };
@@ -1723,10 +1748,10 @@ export default function AskAivaMockup() {
     addMessage({ type: 'user', text: userText });
     respond(() => {
       if (!isKnownMrtStation(station)) {
-        return addMessage({ type: 'aiva-text', text: "I couldn't find that MRT station. Please check the station name or enter its station code." });
+        return addMessage({ type: 'aiva-text', text: "Sorry, I can only provide bridging bus and alternative bus services information for affected stations operated by SBS Transit." });
       }
-      addMessage({ type: 'aiva-text', text: `Sure — here is the bridging bus location at ${station}.` });
-      addMessage({ type: 'aiva-options', options: ['View bridging bus location'] });
+      addMessage({ type: 'aiva-text', text: `Sure — here are the bridging bus locations at ${station}.` });
+      addMessage({ type: 'aiva-options', options: ['View bridging bus locations'] });
       setPendingBridgingBusStation(station);
     }, 700);
   };
@@ -1790,8 +1815,8 @@ export default function AskAivaMockup() {
     }
     if (/^Bus stop (.+) arrival times$/.test(opt)) return setScreen('busArrival');
     if (/^Service (.+) arrival times$/.test(opt)) return setScreen('serviceArrival');
-    if (opt === 'View bridging bus location') return setScreen('bridgingBusLocation');
-    if (opt === 'View alternative transport') return setScreen('alternativeTransport');
+    if (opt === 'View bridging bus locations') return setScreen('bridgingBusLocation');
+    if (opt === 'View alternative transport options') return setScreen('alternativeTransport');
     if (opt === 'Give feedback regarding SBS Transit services') return handleContactUsRedirect(opt);
     if (['Unable to answer my question', 'Response time was too long', 'Poor interface design', 'Other (please specify)'].includes(opt)) {
       return handleReasonSelect(opt);
@@ -1852,15 +1877,13 @@ export default function AskAivaMockup() {
     if (lower.includes('next bus') || lower.includes('bus arriv') || lower.includes('bus service') || lower.includes('bus timing')) {
       return handleBusArrivalTimes(text);
     }
-    if (lower.includes('station map') || lower.includes('wayfinding')) {
-      // Scenario B — the station name was already given, so skip straight
-      // past "Which station map would you like to see?"
-      if (lower.includes('punggol')) {
-        return handlePunggolSelect(text);
-      }
-      if (lower.includes('ang mo kio') || lower.includes('amk')) {
-        return handleAmkSelect(text);
-      }
+    if (
+      /\b(replace|replacement|lost|loss|damaged|faulty)\b/.test(lower) &&
+      /\b(travel ?card|ez-?link|card)\b/.test(lower)
+    ) {
+      return handleReplaceTravelCard(text);
+    }
+    if (lower.includes('station map') || lower.includes('interchange map') || lower.includes('wayfinding')) {
       return handleStationMapEntry(text);
     }
     if (lower.includes('get to') || lower.includes('go to')) {
@@ -1932,7 +1955,7 @@ export default function AskAivaMockup() {
         ) : screen === 'busArrival' ? (
           <BusArrivalScreen stopCode={pendingBusStopCode} onBack={() => setScreen('chat')} />
         ) : screen === 'serviceArrival' ? (
-          <ServiceArrivalScreen serviceNumber={pendingServiceNumber} hasNearbyStop={!NO_NEARBY_STOP_SERVICES.includes(pendingServiceNumber)} onBack={() => setScreen('chat')} />
+          <ServiceArrivalScreen serviceNumber={pendingServiceNumber} pinnedStopCode={pendingServiceStop} hasNearbyStop={!NO_NEARBY_STOP_SERVICES.includes(pendingServiceNumber)} onBack={() => setScreen('chat')} />
         ) : screen === 'bridgingBusLocation' ? (
           <BridgingBusLocationScreen station={pendingBridgingBusStation} onBack={() => setScreen('chat')} />
         ) : screen === 'alternativeTransport' ? (
