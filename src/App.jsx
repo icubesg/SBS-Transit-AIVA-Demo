@@ -1481,6 +1481,7 @@ export default function AskAivaMockup() {
   // 'deeplink3' = Scenario 2 (ask which bus stop, when one wasn't given).
   const [scenarioMode, setScenarioMode] = useState('main');
   const [pendingServiceStop, setPendingServiceStop] = useState('');
+  const [trainDisruption, setTrainDisruption] = useState(true);
   const [soundOn, setSoundOn] = useState(true);
   const scrollRef = useRef(null);
 
@@ -1539,7 +1540,9 @@ export default function AskAivaMockup() {
     clearOptions();
     addMessage({ type: 'user', text: userText });
     respond(() => {
-      addMessage({ type: 'aiva-text', text: '0901 hrs: NEL - Additional travelling time of 20 minutes between Boon Keng and Dhoby Ghaut stations towards HarbourFront station due to a signal fault.' });
+      addMessage({ type: 'aiva-text', text: trainDisruption
+        ? '0901 hrs: NEL - Additional travelling time of 20 minutes between Boon Keng and Dhoby Ghaut stations towards HarbourFront station due to a signal fault.'
+        : 'All train services are running normally' });
     }, 700);
   };
 
@@ -2184,7 +2187,26 @@ export default function AskAivaMockup() {
 
       {/* Demo-only control, outside the phone/app UI. */}
       <div className="flex flex-col gap-3 select-none">
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Edge Case</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Train Service</p>
+        <button
+          onClick={() => setTrainDisruption((v) => !v)}
+          className="text-left px-4 py-2.5 rounded-lg text-sm font-medium transition border"
+          style={
+            trainDisruption
+              ? { backgroundColor: '#D6335A', color: '#fff', borderColor: '#D6335A' }
+              : { backgroundColor: '#2E9E4F', color: '#fff', borderColor: '#2E9E4F' }
+          }
+          aria-pressed={trainDisruption}
+        >
+          {trainDisruption ? 'Disruption: ON' : 'Disruption: OFF (normal)'}
+          <span className="block text-xs font-normal opacity-80 mt-0.5">
+            {trainDisruption ? 'NEL signal fault reported' : 'All train services running normally'}
+          </span>
+        </button>
+        <p className="text-xs text-gray-400 max-w-[220px] leading-relaxed">
+          Controls AIVA&apos;s reply to &ldquo;Is there a train disruption now?&rdquo;.
+        </p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mt-2">Edge Case</p>
         <button
           onClick={() => { setScreen('chat'); setShowErrorBanner(true); }}
           className="text-left px-4 py-2.5 rounded-lg text-sm font-medium transition border"
