@@ -590,7 +590,7 @@ function ServiceRouteMap({ serviceNumber, etaLabel, hasNearbyStop = true }) {
   );
 }
 
-function ServiceArrivalScreen({ serviceNumber = '163', etaLabel = '7 min', from = 'Yishun Int', to = 'Yishun Int', hasNearbyStop = true, pinnedStopCode = '', onBack }) {
+function ServiceArrivalScreen({ serviceNumber = '163', etaLabel = '7 min', from = 'Toa Payoh Int', to = 'Sengkang Int', hasNearbyStop = true, pinnedStopCode = '', onBack }) {
   const pinnedStop = pinnedStopCode ? { code: pinnedStopCode, name: 'Selected stop', street: 'Yishun Ave 2', etas: ['4 min', '11 min'] } : null;
   const nearbyStop = pinnedStop || SERVICE_NEARBY_STOP;
   return (
@@ -1534,6 +1534,15 @@ export default function AskAivaMockup() {
     }, 900);
   };
 
+  // Train service status — a plain text answer, no button.
+  const handleTrainStatus = (userText) => {
+    clearOptions();
+    addMessage({ type: 'user', text: userText });
+    respond(() => {
+      addMessage({ type: 'aiva-text', text: '0901 hrs: NEL - Additional travelling time of 20 minutes between Boon Keng and Dhoby Ghaut stations towards HarbourFront station due to a signal fault.' });
+    }, 700);
+  };
+
   // Replacing a travel card — a plain text answer, no button.
   const handleReplaceTravelCard = (userText) => {
     clearOptions();
@@ -1873,6 +1882,14 @@ export default function AskAivaMockup() {
     }
     if (lower.includes('bus stop')) {
       return handleNearestBusStop(text);
+    }
+    if (
+      /\b(disruption|delay|delays|delayed|breakdown|fault)\b/.test(lower) && /\b(train|mrt|lrt|rail|line)\b/.test(lower) ||
+      /\b(train|mrt|rail)\s+(service\s+)?(status|update|disruption|delay)/.test(lower) ||
+      /\b(current|latest)\s+(train|mrt|rail)\b/.test(lower) ||
+      lower.includes('train status') || lower.includes('service disruption')
+    ) {
+      return handleTrainStatus(text);
     }
     if (lower.includes('next bus') || lower.includes('bus arriv') || lower.includes('bus service') || lower.includes('bus timing')) {
       return handleBusArrivalTimes(text);
