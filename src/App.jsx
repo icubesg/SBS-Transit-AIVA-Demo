@@ -343,6 +343,65 @@ const NEARBY_STOPS = [
   { code: '59779', name: 'Opp Blks 469A/469B', street: 'Yishun Ave 1', distance: '390m', bike: '00' },
 ];
 
+const STATION_BUS_STOPS = [
+  { code: '03539', name: 'Marina Bay Stn', street: 'CTRL BLVD' },
+  { code: '03579', name: 'Opp Downtown Stn', street: 'STRAITS VIEW' },
+  { code: '03391', name: 'Marina Bay Financial Ctr', street: 'MARINA BLVD' },
+  { code: '03529', name: 'Downtown Stn Exit E', street: 'CTRL BLVD' },
+  { code: '03339', name: 'Aft Marina Gdns Dr', street: 'CTRL BLVD' },
+];
+
+function StationBusStopsScreen({ station = 'Downtown', onBack }) {
+  return (
+    <div className="flex flex-col h-full bg-white">
+      <div className="shrink-0" style={{ background: GRADIENT }}>
+        <StatusBarRow />
+        <div className="flex items-center gap-3 px-4 pb-3 pt-1">
+          <button onClick={onBack} className="p-1 shrink-0" aria-label="Back to Ask AIVA">
+            <ArrowLeft size={20} color="#fff" />
+          </button>
+          <p className="text-white text-xl font-bold flex-1 text-center pr-7">Bus</p>
+        </div>
+      </div>
+
+      <div className="flex shrink-0" style={{ backgroundColor: '#262626' }}>
+        {['Service', 'Bus Stop', 'MRT & LRT'].map((t) => (
+          <div
+            key={t}
+            className="flex-1 py-3.5 text-center text-sm font-bold text-white"
+            style={t === 'MRT & LRT' ? { backgroundColor: '#621D5F' } : undefined}
+          >
+            {t}
+          </div>
+        ))}
+      </div>
+
+      <div className="px-2.5 py-2.5 shrink-0" style={{ backgroundColor: '#454545' }}>
+        <div className="flex items-center gap-2 bg-white rounded-full px-3 py-2" style={{ border: '1.5px solid #111' }}>
+          <Search size={15} color="#111" />
+          <span className="flex-1 text-sm text-gray-900 uppercase">{station} STN</span>
+          <span className="w-5 h-5 rounded-full flex items-center justify-center" style={{ backgroundColor: '#111' }}>
+            <X size={11} color="#fff" />
+          </span>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        {STATION_BUS_STOPS.map((s) => (
+          <div key={s.code} className="flex items-center gap-3 px-3 py-3" style={{ borderBottom: '1px solid #D8D8DC' }}>
+            <Bus size={26} color="#E8703A" className="shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-[15px] font-bold truncate" style={{ color: '#555' }}>{s.code} - {s.name}</p>
+              <p className="text-xs" style={{ color: '#666' }}>{s.street}</p>
+            </div>
+            <ChevronRight size={18} color="#9A9AA2" className="shrink-0" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function NearbyScreen({ onBack }) {
   return (
     <div className="flex flex-col h-full" style={{ backgroundColor: '#FAFAFC' }}>
@@ -1482,6 +1541,7 @@ export default function AskAivaMockup() {
   const [scenarioMode, setScenarioMode] = useState('main');
   const [pendingServiceStop, setPendingServiceStop] = useState('');
   const [trainDisruption, setTrainDisruption] = useState(true);
+  const [pendingStationBusStops, setPendingStationBusStops] = useState('Downtown');
   const [soundOn, setSoundOn] = useState(true);
   const scrollRef = useRef(null);
 
@@ -1533,6 +1593,17 @@ export default function AskAivaMockup() {
       addMessage({ type: 'aiva-text', text: `Here is the station map of Punggol Coast MRT Station, ${level}.` });
       addMessage({ type: 'aiva-image', level });
     }, 900);
+  };
+
+  // Bus stops near a named MRT station — button opens the station bus-stop list.
+  const handleStationBusStops = (stationName, userText) => {
+    clearOptions();
+    addMessage({ type: 'user', text: userText });
+    respond(() => {
+      addMessage({ type: 'aiva-text', text: `Please follow the link to see the bus stops near ${stationName} MRT Station.` });
+      addMessage({ type: 'aiva-options', options: [`Bus stops near ${stationName} STN`] });
+      setPendingStationBusStops(stationName);
+    }, 700);
   };
 
   // Train service status — a plain text answer, no button.
@@ -1821,6 +1892,7 @@ export default function AskAivaMockup() {
     if (opt === 'How do I get to…?') return handleJourneyStub(opt, null);
     if (opt === 'View my journey planner') return setScreen('journey');
     if (opt === 'Bus stops near me') return setScreen('nearby');
+    if (/^Bus stops near .+ STN$/.test(opt)) return setScreen('stationBusStops');
     if (opt === 'Bus arrival times near me') {
       setPendingBusStopCode('59409');
       return setScreen('busArrival');
@@ -1874,6 +1946,11 @@ export default function AskAivaMockup() {
       const stationMatch = text.match(/\bat\s+(.+?)[\?\.!]*$/i);
       const station = stationMatch ? stationMatch[1].trim() : 'this station';
       return handleBridgingBusLocation(station, text);
+    }
+    const stationBusStopMatch = text.match(/\bbus stops?\s+(?:near|at|around|close to|nearby)\s+(.+?)\s+(?:mrt|lrt|stn)\b/i);
+    if (stationBusStopMatch) {
+      const name = stationBusStopMatch[1].trim().replace(/\b\w/g, (c) => c.toUpperCase());
+      return handleStationBusStops(name, text);
     }
     const serviceMatch = text.match(/\b(?:bus|service)\s+(\d{1,4}[a-zA-Z]?)\b/i);
     const busStopCodeMatch = text.match(/\bbus stop\s+(\d{4,6})\b/i);
@@ -1970,6 +2047,8 @@ export default function AskAivaMockup() {
             destination={journeyDestination}
             onBack={() => setScreen('chat')}
           />
+        ) : screen === 'stationBusStops' ? (
+          <StationBusStopsScreen station={pendingStationBusStops} onBack={() => setScreen('chat')} />
         ) : screen === 'nearby' ? (
           <NearbyScreen onBack={() => setScreen('chat')} />
         ) : screen === 'busArrival' ? (
