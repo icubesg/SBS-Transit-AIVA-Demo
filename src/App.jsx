@@ -1513,7 +1513,7 @@ export default function AskAivaMockup() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, isTyping, isTranscribing]);
+  }, [messages, isTyping, isTranscribing, screen]);
 
   const addMessage = (msg) => setMessages((prev) => [...prev, { id: nextId(), time: new Date(), ...msg }]);
   const clearOptions = () => setMessages((prev) => prev.filter((m) => m.type !== 'aiva-options'));
@@ -1968,7 +1968,7 @@ export default function AskAivaMockup() {
           <JourneyPlannerScreen
             origin={journeyOrigin}
             destination={journeyDestination}
-            onBack={() => { resetChat(); setScreen('chat'); }}
+            onBack={() => setScreen('chat')}
           />
         ) : screen === 'nearby' ? (
           <NearbyScreen onBack={() => setScreen('chat')} />
