@@ -2002,7 +2002,7 @@ export default function AskAivaMockup() {
     setIsTyping(true);
     setTimeout(() => {
       setIsTyping(false);
-      addMessage({ type: 'aiva-text', text: "Got it — let me look that up. (Demo reply: connect this to AIVA's live intent engine.)" });
+      addMessage({ type: 'aiva-text', text: "Sorry. As a SBS Transit AI Virtual Assistant, I might not be able to answer that. Is there another inquiry related to public transportation you would like to make?" });
     }, 900);
   };
 
