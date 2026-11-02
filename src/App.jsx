@@ -980,9 +980,6 @@ function ExitWarningModal({ onCancel, onConfirm }) {
     <div className="absolute inset-0 z-50 flex items-center justify-center px-8" style={{ backgroundColor: 'rgba(17,17,20,0.45)' }}>
       <div className="w-full bg-white rounded-2xl shadow-2xl overflow-hidden">
         <div className="flex flex-col items-center text-center px-5 pt-6 pb-4">
-          <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3" style={{ backgroundColor: '#FBEFE4' }}>
-            <ShieldAlert size={22} color="#E8842C" />
-          </div>
           <p className="text-sm font-bold text-gray-800">You are now leaving SBS Transit App</p>
           <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
             You will be redirected to an external website in your device's browser.
@@ -1524,6 +1521,8 @@ export default function AskAivaMockup() {
   const [journeyDestination, setJourneyDestination] = useState('Singapore Polytechnic');
   const [enlargedMap, setEnlargedMap] = useState(null);
   const [showExitWarning, setShowExitWarning] = useState(false);
+  const [redirectLoading, setRedirectLoading] = useState(false);
+  const [awaitingStationFor, setAwaitingStationFor] = useState(null); // 'alternative' | 'bridging' | null
   const [showErrorBanner, setShowErrorBanner] = useState(false);
   const [awaitingOtherFeedback, setAwaitingOtherFeedback] = useState(false);
   const [awaitingOriginReply, setAwaitingOriginReply] = useState(false);
@@ -1542,6 +1541,7 @@ export default function AskAivaMockup() {
   const [pendingServiceStop, setPendingServiceStop] = useState('');
   const [trainDisruption, setTrainDisruption] = useState(true);
   const [nearbyStopAvailable, setNearbyStopAvailable] = useState(true);
+  const [introCompact, setIntroCompact] = useState(false);
   const [pendingStationBusStops, setPendingStationBusStops] = useState('Downtown');
   const [soundOn, setSoundOn] = useState(true);
   const scrollRef = useRef(null);
@@ -1564,6 +1564,7 @@ export default function AskAivaMockup() {
     setInputValue('');
     setAwaitingOtherFeedback(false);
     setAwaitingOriginReply(false);
+    setAwaitingStationFor(null);
     setPendingDestination('');
     setAwaitingServiceBusStop(false);
     setPendingServiceForStop('');
@@ -1574,6 +1575,25 @@ export default function AskAivaMockup() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
+  }, [messages, isTyping, isTranscribing, screen]);
+
+  // The AIVA intro row shrinks once the user scrolls down (which also happens
+  // automatically when the conversation grows past one screen) and returns to
+  // its full size when they scroll back to the top. Thresholds differ for
+  // shrinking vs. expanding (hysteresis) so the row can't flicker.
+  const INTRO_HEIGHT_SAVED = 36;
+  const updateIntroCompact = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const top = el.scrollTop;
+    const overflow = el.scrollHeight - el.clientHeight;
+    setIntroCompact((prev) => {
+      if (prev) return top > 4;
+      return top > 24 && overflow > INTRO_HEIGHT_SAVED + 28;
+    });
+  };
+  useEffect(() => {
+    updateIntroCompact();
   }, [messages, isTyping, isTranscribing, screen]);
 
   const addMessage = (msg) => setMessages((prev) => [...prev, { id: nextId(), time: new Date(), ...msg }]);
@@ -1826,6 +1846,41 @@ export default function AskAivaMockup() {
     }, 700);
   };
 
+  // No station named — ask for the user's location with a question that
+  // invites a direct answer (not a yes/no question).
+  const WHERE_ARE_YOU = 'Please let me know where you are right now.';
+  const handleStationNeeded = (kind, userText) => {
+    clearOptions();
+    addMessage({ type: 'user', text: userText });
+    respond(() => {
+      addMessage({ type: 'aiva-text', text: WHERE_ARE_YOU });
+      setAwaitingStationFor(kind);
+    }, 700);
+  };
+
+  const normalizeStationReply = (reply) => {
+    let name = reply.trim().replace(/[?.!]+$/, '').replace(/\b(?:i am|i'm|im)\s+(?:at|in)\s+/i, '').replace(/^(?:at|in)\s+/i, '');
+    name = name.replace(/\b\w/g, (c) => c.toUpperCase()).replace(/\bMrt\b/g, 'MRT').replace(/\bLrt\b/g, 'LRT');
+    if (!/\b(MRT|LRT|Station|Stn)\b/i.test(name)) name += ' MRT';
+    return name;
+  };
+
+  const handleStationReply = (reply) => {
+    const kind = awaitingStationFor;
+    // A bare "yes" doesn't tell us the station — ask again, still waiting.
+    if (/^\s*(yes|yeah|yep|ok|okay|sure)\b[\s.!]*$/i.test(reply)) {
+      clearOptions();
+      addMessage({ type: 'user', text: reply });
+      return respond(() => {
+        addMessage({ type: 'aiva-text', text: WHERE_ARE_YOU });
+      }, 700);
+    }
+    setAwaitingStationFor(null);
+    const station = normalizeStationReply(reply);
+    if (kind === 'bridging') return handleBridgingBusLocation(station, reply);
+    return handleAlternativeTransport(station, reply);
+  };
+
   // Bridging bus location at a named station — same display-only button pattern.
   const handleBridgingBusLocation = (station, userText) => {
     clearOptions();
@@ -1871,12 +1926,22 @@ export default function AskAivaMockup() {
     }
   };
 
+  // Show a short loading state before the exit-app warning, so the popup
+  // doesn't jump in immediately after AIVA's reply.
+  const openExitWarningWithDelay = () => {
+    setRedirectLoading(true);
+    setTimeout(() => {
+      setRedirectLoading(false);
+      setShowExitWarning(true);
+    }, 1600);
+  };
+
   const handleContactUsRedirect = (opt) => {
     clearOptions();
     addMessage({ type: 'user', text: opt });
     respond(() => {
       addMessage({ type: 'aiva-text', text: 'Sure. Let me bring you to the Contact Us form.' });
-      setShowExitWarning(true);
+      openExitWarningWithDelay();
     }, 700);
   };
 
@@ -1906,7 +1971,7 @@ export default function AskAivaMockup() {
     if (['Unable to answer my question', 'Response time was too long', 'Poor interface design', 'Other (please specify)'].includes(opt)) {
       return handleReasonSelect(opt);
     }
-    if (opt === 'Contact Us form') return setShowExitWarning(true);
+    if (opt === 'Contact Us form') return openExitWarningWithDelay();
   };
 
   const handleSend = () => {
@@ -1931,6 +1996,10 @@ export default function AskAivaMockup() {
       return handleOriginReply(text);
     }
 
+    if (awaitingStationFor) {
+      return handleStationReply(text);
+    }
+
     const lower = text.toLowerCase();
     if (lower.includes('provide feedback') || lower.includes('give feedback') || lower.includes('leave feedback') || lower.includes('submit feedback') || lower.includes('complaint') || lower.includes('complain')) {
       return handleContactUsRedirect(text);
@@ -1940,13 +2009,13 @@ export default function AskAivaMockup() {
     // caught by the "bus service" keyword meant for regular bus arrival times.
     if (lower.includes('alternative transport') || lower.includes('alternate transport')) {
       const stationMatch = text.match(/\bat\s+(.+?)[\?\.!]*$/i);
-      const station = stationMatch ? stationMatch[1].trim() : 'this station';
-      return handleAlternativeTransport(station, text);
+      if (!stationMatch) return handleStationNeeded('alternative', text);
+      return handleAlternativeTransport(stationMatch[1].trim(), text);
     }
     if (lower.includes('bridging bus')) {
       const stationMatch = text.match(/\bat\s+(.+?)[\?\.!]*$/i);
-      const station = stationMatch ? stationMatch[1].trim() : 'this station';
-      return handleBridgingBusLocation(station, text);
+      if (!stationMatch) return handleStationNeeded('bridging', text);
+      return handleBridgingBusLocation(stationMatch[1].trim(), text);
     }
     const stationBusStopMatch = text.match(/\bbus stops?\s+(?:near|at|around|close to|nearby)\s+(.+?)\s+(?:mrt|lrt|stn)\b/i);
     if (stationBusStopMatch) {
@@ -2115,34 +2184,52 @@ export default function AskAivaMockup() {
           </div>
         )}
 
-        {/* Chat area */}
-        <div
-          ref={scrollRef}
-          className="flex-1 overflow-y-auto px-3 py-4 space-y-3"
-          style={{ background: PAGE_GRADIENT }}
-        >
-          {/* AIVA intro row: avatar + name on the left, sound toggle on the right */}
-          <div className="flex items-center justify-between pb-1">
+        {/* AIVA intro row: sits above the scroll area so the sound toggle is always reachable.
+            Shrinks (avatar smaller, texts hidden) once the chat scrolls or grows. */}
+          <div
+            className="shrink-0 flex items-center justify-between px-3 transition-all"
+            style={{
+              paddingTop: introCompact ? 4 : 12,
+              paddingBottom: introCompact ? 4 : 4,
+              background: introCompact ? '#F1E9F8' : PAGE_GRADIENT,
+              borderBottom: introCompact ? '1px solid #E4D6EF' : '1px solid transparent',
+            }}
+          >
             <div className="flex items-center gap-2">
-              <AivaPortrait size={56} />
-              <div className="leading-tight">
-                <p className="text-xs font-bold" style={{ color: PURPLE_DARK }}>AIVA</p>
-                <p className="text-[10px] text-gray-500">AI Virtual Assistant</p>
-              </div>
+              <AivaPortrait size={introCompact ? 28 : 56} />
+              {!introCompact && (
+                <div className="leading-tight">
+                  <p className="text-xs font-bold" style={{ color: PURPLE_DARK }}>AIVA</p>
+                  <p className="text-[10px] text-gray-500">AI Virtual Assistant</p>
+                </div>
+              )}
             </div>
             <button
               onClick={() => setSoundOn((s) => !s)}
-              className="flex items-center gap-1.5 pl-3 pr-2.5 py-2 rounded-full transition shrink-0"
-              style={{ backgroundColor: '#EFE3F5' }}
-              aria-label="Toggle sound"
+              className="flex items-center gap-1 rounded-full transition shrink-0"
+              style={{
+                backgroundColor: '#EFE3F5',
+                padding: introCompact ? 6 : '6px 10px 6px 12px',
+              }}
+              aria-label={soundOn ? 'Turn sound off' : 'Turn sound on'}
+              aria-pressed={soundOn}
             >
-              <span className="text-xs font-semibold" style={{ color: PURPLE_DARK }}>
-                {soundOn ? 'Sound On' : 'Sound Off'}
-              </span>
-              {soundOn ? <Volume2 size={17} color={PURPLE_DARK} /> : <VolumeX size={17} color={PURPLE_DARK} />}
+              {!introCompact && (
+                <span className="text-[11px] font-semibold" style={{ color: PURPLE_DARK }}>
+                  {soundOn ? 'Sound On' : 'Sound Off'}
+                </span>
+              )}
+              {soundOn ? <Volume2 size={14} color={PURPLE_DARK} /> : <VolumeX size={14} color={PURPLE_DARK} />}
             </button>
           </div>
 
+        {/* Chat area */}
+        <div
+          ref={scrollRef}
+          onScroll={updateIntroCompact}
+          className="flex-1 overflow-y-auto px-3 pt-2 pb-4 space-y-3"
+          style={{ background: PAGE_GRADIENT }}
+        >
           {messages.map((msg) => (
             <Message
               key={msg.id}
@@ -2253,6 +2340,17 @@ export default function AskAivaMockup() {
           )}
         </div>
 
+        {redirectLoading && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(17,17,20,0.35)' }} role="status" aria-label="Loading">
+            <div className="bg-white rounded-2xl shadow-xl px-6 py-5 flex flex-col items-center gap-3">
+              <div
+                className="animate-spin rounded-full"
+                style={{ width: 28, height: 28, border: '3px solid #EFE3F5', borderTopColor: GRADIENT }}
+              />
+              <p className="text-xs text-gray-600">Loading Contact Us…</p>
+            </div>
+          </div>
+        )}
         {showExitWarning && (
           <ExitWarningModal onCancel={handleCancelExitWarning} onConfirm={handleConfirmExitWarning} />
         )}
