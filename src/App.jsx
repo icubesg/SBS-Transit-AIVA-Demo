@@ -982,12 +982,12 @@ function ExitWarningModal({ onCancel, onConfirm }) {
         <div className="flex flex-col items-center text-center px-5 pt-6 pb-4">
           <p className="text-sm font-bold text-gray-800">You are now leaving SBS Transit App</p>
           <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
-            You will be redirected to an external website in your device's browser.
+            You will be redirected to an external link or another app. If you wish to proceed, please click OK.
           </p>
         </div>
         <div className="flex border-t border-gray-100">
           <button onClick={onCancel} className="flex-1 py-3.5 text-sm font-semibold text-gray-500 border-r border-gray-100">
-            Cancel
+            CANCEL
           </button>
           <button onClick={onConfirm} className="flex-1 py-3.5 text-sm font-bold" style={{ color: GRADIENT }}>
             OK
@@ -1542,6 +1542,7 @@ export default function AskAivaMockup() {
   const [trainDisruption, setTrainDisruption] = useState(true);
   const [nearbyStopAvailable, setNearbyStopAvailable] = useState(true);
   const [introCompact, setIntroCompact] = useState(false);
+  const [showDisclaimer, setShowDisclaimer] = useState(true);
   const [pendingStationBusStops, setPendingStationBusStops] = useState('Downtown');
   const [soundOn, setSoundOn] = useState(true);
   const scrollRef = useRef(null);
@@ -1848,12 +1849,15 @@ export default function AskAivaMockup() {
 
   // No station named — ask for the user's location with a question that
   // invites a direct answer (not a yes/no question).
-  const WHERE_ARE_YOU = 'Please let me know where you are right now.';
+  const stationQuestion = (kind) =>
+    kind === 'alternative'
+      ? 'Please let me know which MRT station you would like to explore alternative transport options for.'
+      : 'Please let me know where you are right now.';
   const handleStationNeeded = (kind, userText) => {
     clearOptions();
     addMessage({ type: 'user', text: userText });
     respond(() => {
-      addMessage({ type: 'aiva-text', text: WHERE_ARE_YOU });
+      addMessage({ type: 'aiva-text', text: stationQuestion(kind) });
       setAwaitingStationFor(kind);
     }, 700);
   };
@@ -1872,7 +1876,7 @@ export default function AskAivaMockup() {
       clearOptions();
       addMessage({ type: 'user', text: reply });
       return respond(() => {
-        addMessage({ type: 'aiva-text', text: WHERE_ARE_YOU });
+        addMessage({ type: 'aiva-text', text: stationQuestion(kind) });
       }, 700);
     }
     setAwaitingStationFor(null);
@@ -2156,12 +2160,21 @@ export default function AskAivaMockup() {
         </div>
 
         {/* Disclaimer */}
-        <div className="px-4 py-1.5 shrink-0 border-b border-gray-100 bg-white text-left">
-          <p className="text-[10px] font-bold text-gray-500">Disclaimer:</p>
-          <p className="text-[10px] text-gray-400 leading-snug">
-            When using AIVA, you agree to our collection of the personal information you enter, as well as audio recordings.
-          </p>
-        </div>
+        {showDisclaimer && (
+          <div className="relative pl-4 pr-9 py-1.5 shrink-0 border-b border-gray-100 bg-white text-left">
+            <p className="text-[10px] font-bold text-gray-500">Disclaimer:</p>
+            <p className="text-[10px] text-gray-400 leading-snug">
+              When using AIVA, you agree to our collection of the personal information you enter, as well as audio recordings.
+            </p>
+            <button
+              onClick={() => setShowDisclaimer(false)}
+              className="absolute top-1 right-1 w-7 h-7 flex items-center justify-center rounded-full"
+              aria-label="Close disclaimer"
+            >
+              <X size={14} color="#6B6B76" />
+            </button>
+          </div>
+        )}
 
         {/* Edge case — AIVA returned an unrecognized response or an error;
             the chat stays intact and usable underneath the banner. */}
