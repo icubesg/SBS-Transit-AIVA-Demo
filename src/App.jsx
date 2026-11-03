@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Volume2, VolumeX, Send, Mic, MapPin, Map, TrainFront, Ticket, Bus, Menu, Home, Wifi, Bell, Share2, Bookmark, ShoppingBag, Repeat, Mail, MessageCircle, Search, ChevronLeft, ChevronRight, ChevronDown, RefreshCw, Bike, Accessibility, Locate, ArrowLeft, Star, ExternalLink, Lock, MoreVertical, ZoomIn, Navigation, Clock, ShieldAlert, RotateCw, Footprints, ArrowRightLeft, Maximize2, SlidersHorizontal, Car, Circle, BatteryFull, SignalHigh, Info, GitFork, HelpCircle, AlertTriangle, CornerUpRight } from 'lucide-react';
+import { X, Volume2, VolumeX, Send, Mic, MapPin, Map, TrainFront, Ticket, Bus, Menu, Home, Wifi, Bell, Share2, Bookmark, ShoppingBag, Repeat, Mail, MessageCircle, Search, ChevronLeft, ChevronRight, ChevronDown, RefreshCw, Bike, Accessibility, Locate, ArrowLeft, Star, ExternalLink, Lock, MoreVertical, ZoomIn, Navigation, Clock, ShieldAlert, RotateCw, Footprints, ArrowRightLeft, Maximize2, SlidersHorizontal, Car, Circle, BatteryFull, SignalHigh, Info, GitFork, HelpCircle, AlertTriangle, CornerUpRight, Hand } from 'lucide-react';
 
 // ---- Color scheme (matches the quick-links reference) ----
 const PURPLE = '#6F2482';
@@ -975,6 +975,58 @@ function StarRating({ onSelect, selected }) {
 }
 
 // ---- Exit-app warning prompt (Screen 8.2) ----
+// iOS-style permission prompts shown the first time the mic icon is tapped:
+// 1) Speech Recognition, then 2) Microphone.
+function PermissionDialog({ kind, onDeny, onAllow }) {
+  const isSpeech = kind === 'speech';
+  return (
+    <div className="absolute inset-0 z-50 flex items-center justify-center px-6" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }} role="alertdialog" aria-modal="true">
+      <div className="w-full rounded-[26px] p-4 text-left" style={{ backgroundColor: 'rgba(58,58,60,0.97)', color: '#fff' }}>
+        <div className="relative w-14 h-14 mb-3">
+          <div
+            className="w-14 h-14 rounded-xl flex items-center justify-center"
+            style={{ background: isSpeech ? 'linear-gradient(160deg,#9A9AA0,#6E6E74)' : 'linear-gradient(160deg,#FFA43C,#F27A12)' }}
+          >
+            {isSpeech ? (
+              <svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round">
+                <path d="M4 13v4M9 9v12M15 4v22M21 9v12M26 13v4" />
+              </svg>
+            ) : (
+              <Mic size={30} color="#fff" />
+            )}
+          </div>
+          <div className="absolute -right-2 -bottom-2 w-6 h-6 rounded-md flex items-center justify-center" style={{ backgroundColor: '#1F7AF5', border: '1.5px solid #3A3A3C' }}>
+            <Hand size={14} color="#fff" />
+          </div>
+        </div>
+        <p className="text-[15px] font-semibold leading-snug">
+          {isSpeech
+            ? '“SBS Transit Test” would like to access Speech Recognition.'
+            : '“SBS Transit Test” would like to access the Microphone.'}
+        </p>
+        <p className="text-xs mt-1.5 leading-snug" style={{ color: '#B5B5BA' }}>
+          {isSpeech
+            ? 'Speech data from this app will be sent to Apple to process your requests. This will also help Apple improve its speech recognition technology.'
+            : 'Use your microphone so you can ask AIVA questions by voice'}
+        </p>
+        {isSpeech && (
+          <p className="text-xs mt-3 leading-snug" style={{ color: '#B5B5BA' }}>
+            Convert your voice into text so AIVA can understand your question
+          </p>
+        )}
+        <div className="flex gap-2.5 mt-4">
+          <button onClick={onDeny} className="flex-1 py-3 rounded-full text-sm font-semibold" style={{ backgroundColor: '#58585B' }}>
+            Don&apos;t Allow
+          </button>
+          <button onClick={onAllow} className="flex-1 py-3 rounded-full text-sm font-semibold" style={{ backgroundColor: '#58585B' }}>
+            Allow
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ExitWarningModal({ onCancel, onConfirm }) {
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center px-8" style={{ backgroundColor: 'rgba(17,17,20,0.45)' }}>
@@ -1543,6 +1595,8 @@ export default function AskAivaMockup() {
   const [nearbyStopAvailable, setNearbyStopAvailable] = useState(true);
   const [introCompact, setIntroCompact] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(true);
+  const [micPermission, setMicPermission] = useState('unknown'); // 'unknown' | 'granted' | 'denied'
+  const [permissionPrompt, setPermissionPrompt] = useState(null); // null | 'speech' | 'mic'
   const [pendingStationBusStops, setPendingStationBusStops] = useState('Downtown');
   const [soundOn, setSoundOn] = useState(true);
   const scrollRef = useRef(null);
@@ -2085,7 +2139,28 @@ export default function AskAivaMockup() {
     setScreen('browser');
   };
 
-  const handleStartRecording = () => setIsRecording(true);
+  const handleStartRecording = () => {
+    if (micPermission === 'denied') return;
+    if (micPermission === 'granted') return setIsRecording(true);
+    setPermissionPrompt('speech');
+  };
+
+  const handleDenyPermission = () => {
+    setPermissionPrompt(null);
+    setMicPermission('denied');
+  };
+
+  const handleAllowPermission = () => {
+    if (permissionPrompt === 'speech') {
+      // Brief pause so the Microphone prompt doesn't pop in instantly after Speech Recognition.
+      setPermissionPrompt(null);
+      setTimeout(() => setPermissionPrompt('mic'), 1200);
+      return;
+    }
+    setPermissionPrompt(null);
+    setMicPermission('granted');
+    setIsRecording(true);
+  };
 
   const handleCancelRecording = () => setIsRecording(false);
 
@@ -2209,7 +2284,14 @@ export default function AskAivaMockup() {
             }}
           >
             <div className="flex items-center gap-2">
-              <AivaPortrait size={introCompact ? 28 : 56} />
+              {introCompact ? (
+                <div className="flex items-center gap-1.5">
+                  <AivaPortrait size={28} />
+                  <span className="text-xs font-bold" style={{ color: PURPLE_DARK }}>AIVA</span>
+                </div>
+              ) : (
+                <AivaPortrait size={56} />
+              )}
               {!introCompact && (
                 <div className="leading-tight">
                   <p className="text-xs font-bold" style={{ color: PURPLE_DARK }}>AIVA</p>
@@ -2334,9 +2416,10 @@ export default function AskAivaMockup() {
               />
               <button
                 onClick={handleStartRecording}
+                disabled={micPermission === 'denied'}
                 className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition"
-                style={{ backgroundColor: '#F1F1F4', color: '#6B6B76' }}
-                aria-label="Voice input"
+                style={{ backgroundColor: '#F1F1F4', color: '#6B6B76', opacity: micPermission === 'denied' ? 0.4 : 1, cursor: micPermission === 'denied' ? 'not-allowed' : 'pointer' }}
+                aria-label={micPermission === 'denied' ? 'Voice input unavailable — microphone access denied' : 'Voice input'}
               >
                 <Mic size={18} />
               </button>
@@ -2353,6 +2436,9 @@ export default function AskAivaMockup() {
           )}
         </div>
 
+        {permissionPrompt && (
+          <PermissionDialog kind={permissionPrompt} onDeny={handleDenyPermission} onAllow={handleAllowPermission} />
+        )}
         {redirectLoading && (
           <div className="absolute inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(17,17,20,0.35)' }} role="status" aria-label="Loading">
             <div className="bg-white rounded-2xl shadow-xl px-6 py-5 flex flex-col items-center gap-3">
@@ -2397,6 +2483,17 @@ export default function AskAivaMockup() {
         <p className="text-xs text-gray-400 max-w-[220px] leading-relaxed">
           Controls AIVA&apos;s reply to &ldquo;Is there a train disruption now?&rdquo;.
         </p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mt-2">Voice Permission</p>
+        <button
+          onClick={() => { setMicPermission('unknown'); setPermissionPrompt(null); setIsRecording(false); }}
+          className="text-left px-4 py-2.5 rounded-lg text-sm font-medium transition border"
+          style={{ backgroundColor: '#fff', color: '#4B4B55', borderColor: '#E5E5EA' }}
+        >
+          Reset permission
+          <span className="block text-xs font-normal opacity-80 mt-0.5">
+            Now: {micPermission === 'unknown' ? 'not asked yet' : micPermission === 'granted' ? 'allowed' : 'denied (mic disabled)'}
+          </span>
+        </button>
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mt-2">Bus Service Screen</p>
         <button
           onClick={() => setNearbyStopAvailable((v) => !v)}
