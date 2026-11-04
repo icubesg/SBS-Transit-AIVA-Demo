@@ -1027,6 +1027,30 @@ function PermissionDialog({ kind, onDeny, onAllow }) {
   );
 }
 
+function SoundPromptDialog({ onChoose }) {
+  return (
+    <div className="absolute inset-0 z-50 flex items-center justify-center px-6" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }} role="alertdialog" aria-modal="true">
+      <div
+        className="w-full rounded-[26px] p-4 text-left"
+        style={{ backgroundColor: 'rgba(236,236,240,0.96)', color: '#111', backdropFilter: 'blur(12px)' }}
+      >
+        <p className="text-[15px] font-semibold leading-snug">AIVA Sound</p>
+        <p className="text-xs mt-1.5 leading-snug" style={{ color: '#7A7A80' }}>
+          Would you like AIVA to read its replies aloud? You can change this anytime with the speaker button.
+        </p>
+        <div className="flex gap-2.5 mt-4">
+          <button onClick={() => onChoose(false)} className="flex-1 py-3 rounded-full text-sm font-semibold" style={{ backgroundColor: 'rgba(120,120,128,0.2)', color: '#111' }}>
+            Sound Off
+          </button>
+          <button onClick={() => onChoose(true)} className="flex-1 py-3 rounded-full text-sm font-semibold" style={{ backgroundColor: 'rgba(120,120,128,0.2)', color: '#111' }}>
+            Sound On
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ExitWarningModal({ onCancel, onConfirm }) {
   // iOS-style alert, same card shape/spacing as the permission popups,
   // in the light frosted look of the reference screenshot (OK left, Cancel right).
@@ -1598,6 +1622,8 @@ export default function AskAivaMockup() {
   const [nearbyStopAvailable, setNearbyStopAvailable] = useState(true);
   const [introCompact, setIntroCompact] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(true);
+  const soundPromptShown = useRef(false); // only ever shown once
+  const [showSoundPrompt, setShowSoundPrompt] = useState(false);
   const [micPermission, setMicPermission] = useState('unknown'); // 'unknown' | 'granted' | 'denied'
   const [permissionPrompt, setPermissionPrompt] = useState(null); // null | 'speech' | 'mic'
   const [pendingStationBusStops, setPendingStationBusStops] = useState('Downtown');
@@ -2142,6 +2168,20 @@ export default function AskAivaMockup() {
     setScreen('browser');
   };
 
+  // AIVA Sound prompt: shown once, the first time the chat screen opens.
+  useEffect(() => {
+    if (screen === 'chat' && !soundPromptShown.current) {
+      soundPromptShown.current = true;
+      const t = setTimeout(() => setShowSoundPrompt(true), 500);
+      return () => clearTimeout(t);
+    }
+  }, [screen]);
+
+  const handleChooseSound = (on) => {
+    setSoundOn(on);
+    setShowSoundPrompt(false);
+  };
+
   const handleStartRecording = () => {
     if (micPermission === 'denied') return;
     if (micPermission === 'granted') return setIsRecording(true);
@@ -2439,6 +2479,7 @@ export default function AskAivaMockup() {
           )}
         </div>
 
+        {showSoundPrompt && <SoundPromptDialog onChoose={handleChooseSound} />}
         {permissionPrompt && (
           <PermissionDialog kind={permissionPrompt} onDeny={handleDenyPermission} onAllow={handleAllowPermission} />
         )}
