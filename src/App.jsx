@@ -1028,21 +1028,24 @@ function PermissionDialog({ kind, onDeny, onAllow }) {
 }
 
 function ExitWarningModal({ onCancel, onConfirm }) {
+  // iOS-style alert, same card shape/spacing as the permission popups,
+  // in the light frosted look of the reference screenshot (OK left, Cancel right).
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center px-8" style={{ backgroundColor: 'rgba(17,17,20,0.45)' }}>
-      <div className="w-full bg-white rounded-2xl shadow-2xl overflow-hidden">
-        <div className="flex flex-col items-center text-center px-5 pt-6 pb-4">
-          <p className="text-sm font-bold text-gray-800">You are now leaving SBS Transit App</p>
-          <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
-            You will be redirected to an external link or another app. If you wish to proceed, please click OK.
-          </p>
-        </div>
-        <div className="flex border-t border-gray-100">
-          <button onClick={onCancel} className="flex-1 py-3.5 text-sm font-semibold text-gray-500 border-r border-gray-100">
-            CANCEL
-          </button>
-          <button onClick={onConfirm} className="flex-1 py-3.5 text-sm font-bold" style={{ color: GRADIENT }}>
+    <div className="absolute inset-0 z-50 flex items-center justify-center px-6" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }} role="alertdialog" aria-modal="true">
+      <div
+        className="w-full rounded-[26px] p-4 text-left"
+        style={{ backgroundColor: 'rgba(236,236,240,0.96)', color: '#111', backdropFilter: 'blur(12px)' }}
+      >
+        <p className="text-[15px] font-semibold leading-snug">You are now leaving SBS Transit App</p>
+        <p className="text-xs mt-1.5 leading-snug" style={{ color: '#7A7A80' }}>
+          You will be redirected to an external link or another app. If you wish to proceed, please click OK.
+        </p>
+        <div className="flex gap-2.5 mt-4">
+          <button onClick={onConfirm} className="flex-1 py-3 rounded-full text-sm font-semibold" style={{ backgroundColor: 'rgba(120,120,128,0.2)', color: '#111' }}>
             OK
+          </button>
+          <button onClick={onCancel} className="flex-1 py-3 rounded-full text-sm font-semibold" style={{ backgroundColor: 'rgba(120,120,128,0.2)', color: '#E5252A' }}>
+            Cancel
           </button>
         </div>
       </div>
