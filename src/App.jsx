@@ -977,8 +977,54 @@ function StarRating({ onSelect, selected }) {
 // ---- Exit-app warning prompt (Screen 8.2) ----
 // iOS-style permission prompts shown the first time the mic icon is tapped:
 // 1) Speech Recognition, then 2) Microphone.
-function PermissionDialog({ kind, onDeny, onAllow }) {
+// Android-style dialog (Material): card with left-aligned text and text
+// buttons sitting at the bottom-right — negative action on the left, positive on the right.
+const ANDROID_ACCENT = '#00796B';
+function AndroidDialog({ title, body, extra, negativeLabel, positiveLabel, onNegative, onPositive }) {
+  return (
+    <div className="absolute inset-0 z-50 flex items-center justify-center px-6" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} role="alertdialog" aria-modal="true">
+      <div className="w-full bg-white rounded-lg shadow-2xl text-left" style={{ padding: '20px 20px 8px' }}>
+        <p className="text-[17px] font-medium leading-snug" style={{ color: '#212121' }}>{title}</p>
+        {body && <p className="text-sm mt-3 leading-snug" style={{ color: '#616161' }}>{body}</p>}
+        {extra && <p className="text-sm mt-3 leading-snug" style={{ color: '#616161' }}>{extra}</p>}
+        <div className="flex justify-end gap-2 mt-4 -mr-2">
+          <button onClick={onNegative} className="px-3 py-2.5 text-sm font-medium tracking-wide uppercase" style={{ color: ANDROID_ACCENT }}>
+            {negativeLabel}
+          </button>
+          <button onClick={onPositive} className="px-3 py-2.5 text-sm font-medium tracking-wide uppercase" style={{ color: ANDROID_ACCENT }}>
+            {positiveLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PermissionDialog({ kind, onDeny, onAllow, platform = 'ios' }) {
   const isSpeech = kind === 'speech';
+  if (platform === 'android') {
+    // Android has a single prompt: "Turn on Microphone access?" with two equal
+    // full-width text buttons split by a divider.
+    return (
+      <div className="absolute inset-0 z-50 flex items-center justify-center px-6" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} role="alertdialog" aria-modal="true">
+        <div className="w-full bg-white text-left overflow-hidden" style={{ borderRadius: 28, padding: '24px 24px 12px' }}>
+          <p className="text-[17px] font-semibold leading-snug" style={{ color: '#111' }}>Turn on Microphone access?</p>
+          <p className="text-sm mt-3 leading-snug" style={{ color: '#555' }}>
+            To use the microphone, you need to turn on Microphone access.
+          </p>
+          <div className="flex items-center mt-5">
+            <button onClick={onDeny} className="flex-1 py-3 text-[15px] font-semibold" style={{ color: '#111' }}>
+              Cancel
+            </button>
+            <div style={{ width: 1, height: 22, backgroundColor: '#D5D5D8' }} />
+            <button onClick={onAllow} className="flex-1 py-3 text-[15px] font-semibold" style={{ color: '#111' }}>
+              Turn on
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center px-6" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }} role="alertdialog" aria-modal="true">
       <div className="w-full rounded-[26px] p-4 text-left" style={{ backgroundColor: 'rgba(58,58,60,0.97)', color: '#fff' }}>
@@ -1001,8 +1047,8 @@ function PermissionDialog({ kind, onDeny, onAllow }) {
         </div>
         <p className="text-[15px] font-semibold leading-snug">
           {isSpeech
-            ? '“SBS Transit Test” would like to access Speech Recognition.'
-            : '“SBS Transit Test” would like to access the Microphone.'}
+            ? '“SBS Transit” would like to access Speech Recognition.'
+            : '“SBS Transit” would like to access the Microphone.'}
         </p>
         <p className="text-xs mt-1.5 leading-snug" style={{ color: '#B5B5BA' }}>
           {isSpeech
@@ -1027,7 +1073,147 @@ function PermissionDialog({ kind, onDeny, onAllow }) {
   );
 }
 
-function SoundPromptDialog({ onChoose }) {
+// Location prompt for deep links that need the user's location (nearby bus
+// stops/arrivals, bus service with no stop named, journey from current location).
+// Yes → continue to the screen, No → stay where you are.
+function LocationDialog({ mode, platform = 'ios', onYes, onNo }) {
+  const [accuracy, setAccuracy] = useState('precise');
+  const phoneOff = mode === 'phoneOff';
+  const settingsPath = platform === 'android' ? 'Settings > Location' : 'Settings > Privacy & Security > Location Services';
+  const title = phoneOff ? 'Turn on Location Services?' : 'Turn on location access?';
+  const body = phoneOff
+    ? `Location Services are turned off on this phone. To use this feature, go to ${settingsPath} and turn it on. Open Settings?`
+    : 'This feature needs your location, but location is turned off for SBS Transit. Open Settings to turn it on?';
+  if (platform === 'android' && !phoneOff) {
+    // Android system location permission: Precise / Approximate + 3 choices.
+    // "While using the app" / "Only this time" continue; "Don't allow" stays put.
+    const Choice = ({ label, onClick }) => (
+      <button onClick={onClick} className="w-full py-3 text-[15px] font-semibold" style={{ color: '#111' }}>{label}</button>
+    );
+    const Circle = ({ id, label, children }) => {
+      const selected = accuracy === id;
+      return (
+        <button onClick={() => setAccuracy(id)} className="flex flex-col items-center gap-2" aria-pressed={selected}>
+          <span
+            className="block rounded-full overflow-hidden"
+            style={{ width: 96, height: 96, border: selected ? '3px solid #2F5DB8' : '3px solid transparent', boxSizing: 'border-box' }}
+          >
+            {children}
+          </span>
+          <span className="text-xs" style={{ color: '#111', fontWeight: selected ? 700 : 400 }}>{label}</span>
+        </button>
+      );
+    };
+    return (
+      <div className="absolute inset-0 z-50 flex items-center justify-center px-6" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} role="alertdialog" aria-modal="true">
+        <div className="w-full bg-white overflow-hidden text-center" style={{ borderRadius: 28, padding: '22px 20px 10px' }}>
+          <MapPin size={22} color="#2F5DB8" className="mx-auto" />
+          <p className="text-[13px] mt-3 leading-snug" style={{ color: '#222' }}>
+            Allow <span className="font-bold">SBS Transit</span> to access this device&apos;s location?
+          </p>
+          <div className="flex justify-center gap-6 mt-4">
+            <Circle id="precise" label="Precise">
+              <svg viewBox="0 0 96 96" width="100%" height="100%">
+                <rect width="96" height="96" fill="#EEF0EE" />
+                <g stroke="#D9DCD9" strokeWidth="3">
+                  <path d="M0 20L96 8M0 50L96 40M0 78L96 66M20 0L30 96M52 0L60 96M80 0L84 96" />
+                </g>
+                <rect x="58" y="12" width="14" height="10" fill="#CFE6CF" />
+                <circle cx="22" cy="46" r="2.5" fill="#2F5DB8" />
+                <circle cx="76" cy="36" r="2.5" fill="#2F5DB8" />
+                <ellipse cx="48" cy="62" rx="9" ry="3.5" fill="none" stroke="#2F5DB8" strokeWidth="1.5" />
+                <path d="M48 62C41 52 38 47 38 42a10 10 0 0120 0c0 5-3 10-10 20z" fill="#2F5DB8" />
+                <circle cx="48" cy="42" r="3.5" fill="#fff" />
+              </svg>
+            </Circle>
+            <Circle id="approximate" label="Approximate">
+              <svg viewBox="0 0 96 96" width="100%" height="100%">
+                <rect width="96" height="96" fill="#F1F1EF" />
+                <g fill="none" stroke="#F2C230" strokeWidth="3" strokeLinecap="round">
+                  <path d="M-4 30C20 28 30 44 56 40S86 18 100 22" />
+                  <path d="M10 -4C18 20 30 30 28 52S40 80 38 100" />
+                  <path d="M60 -4C58 20 66 36 70 52S84 74 82 100" />
+                </g>
+                <g fill="none" stroke="#fff" strokeWidth="2">
+                  <path d="M-4 62C30 60 50 70 100 56" />
+                </g>
+                <circle cx="46" cy="66" r="4" fill="#2F5DB8" />
+              </svg>
+            </Circle>
+          </div>
+          <div className="mt-3 flex flex-col">
+            <Choice label="While using the app" onClick={onYes} />
+            <Choice label="Only this time" onClick={onYes} />
+            <Choice label="Don't allow" onClick={onNo} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (platform === 'android') {
+    return (
+      <div className="absolute inset-0 z-50 flex items-center justify-center px-6" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} role="alertdialog" aria-modal="true">
+        <div className="w-full bg-white text-left overflow-hidden" style={{ borderRadius: 28, padding: '24px 24px 12px' }}>
+          <p className="text-[17px] font-semibold leading-snug" style={{ color: '#111' }}>{title}</p>
+          <p className="text-sm mt-3 leading-snug" style={{ color: '#555' }}>{body}</p>
+          <div className="flex items-center mt-5">
+            <button onClick={onNo} className="flex-1 py-3 text-[15px] font-semibold" style={{ color: '#111' }}>No</button>
+            <div style={{ width: 1, height: 22, backgroundColor: '#D5D5D8' }} />
+            <button onClick={onYes} className="flex-1 py-3 text-[15px] font-semibold" style={{ color: '#111' }}>Yes</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (!phoneOff) {
+    // iOS system location permission: Allow Once / Allow While Using App / Don't Allow.
+    // The first two continue to the screen; Don't Allow stays put.
+    const IosChoice = ({ label, onClick }) => (
+      <button onClick={onClick} className="w-full py-3 rounded-full text-[15px] font-medium" style={{ backgroundColor: '#58585B', color: '#fff' }}>
+        {label}
+      </button>
+    );
+    return (
+      <div className="absolute inset-0 z-50 flex items-center justify-center px-6" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }} role="alertdialog" aria-modal="true">
+        <div className="w-full rounded-[26px] p-4 text-left" style={{ backgroundColor: 'rgba(58,58,60,0.97)', color: '#fff' }}>
+          <p className="text-[15px] font-semibold leading-snug">“SBS Transit” would like to use your location.</p>
+          <p className="text-xs mt-1.5 leading-snug" style={{ color: '#B5B5BA' }}>Use your location to find bus stops near you</p>
+          <div className="flex flex-col gap-2 mt-4">
+            <IosChoice label="Allow Once" onClick={onYes} />
+            <IosChoice label="Allow While Using App" onClick={onYes} />
+            <IosChoice label="Don’t Allow" onClick={onNo} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="absolute inset-0 z-50 flex items-center justify-center px-6" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }} role="alertdialog" aria-modal="true">
+      <div className="w-full rounded-[26px] p-4 text-left" style={{ backgroundColor: 'rgba(236,236,240,0.96)', color: '#111', backdropFilter: 'blur(12px)' }}>
+        <p className="text-[15px] font-semibold leading-snug">{title}</p>
+        <p className="text-xs mt-1.5 leading-snug" style={{ color: '#7A7A80' }}>{body}</p>
+        <div className="flex gap-2.5 mt-4">
+          <button onClick={onNo} className="flex-1 py-3 rounded-full text-sm font-semibold" style={{ backgroundColor: 'rgba(120,120,128,0.2)', color: '#111' }}>No</button>
+          <button onClick={onYes} className="flex-1 py-3 rounded-full text-sm font-semibold" style={{ backgroundColor: 'rgba(120,120,128,0.2)', color: '#111' }}>Yes</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SoundPromptDialog({ onChoose, platform = 'ios' }) {
+  if (platform === 'android') {
+    return (
+      <AndroidDialog
+        title="AIVA Sound"
+        body="Would you like AIVA to read its replies aloud? You can change this anytime with the speaker button."
+        negativeLabel="Sound Off"
+        positiveLabel="Sound On"
+        onNegative={() => onChoose(false)}
+        onPositive={() => onChoose(true)}
+      />
+    );
+  }
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center px-6" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }} role="alertdialog" aria-modal="true">
       <div
@@ -1051,7 +1237,19 @@ function SoundPromptDialog({ onChoose }) {
   );
 }
 
-function ExitWarningModal({ onCancel, onConfirm }) {
+function ExitWarningModal({ onCancel, onConfirm, platform = 'ios' }) {
+  if (platform === 'android') {
+    return (
+      <AndroidDialog
+        title="You are now leaving SBS Transit App"
+        body="You will be redirected to an external link or another app. If you wish to proceed, please click OK."
+        negativeLabel="Cancel"
+        positiveLabel="OK"
+        onNegative={onCancel}
+        onPositive={onConfirm}
+      />
+    );
+  }
   // iOS-style alert, same card shape/spacing as the permission popups,
   // in the light frosted look of the reference screenshot (OK left, Cancel right).
   return (
@@ -1622,6 +1820,13 @@ export default function AskAivaMockup() {
   const [nearbyStopAvailable, setNearbyStopAvailable] = useState(true);
   const [introCompact, setIntroCompact] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(true);
+  const [locationStatus, setLocationStatus] = useState('appOff'); // 'on' | 'appOff' | 'phoneOff' (demo control)
+  const [locationPromptOpen, setLocationPromptOpen] = useState(false);
+  const locationPromptShown = useRef(false); // the location popup is only ever shown once
+  const pendingLocationAction = useRef(null);
+  const locationDenied = useRef(false); // after No / Don't allow, location-based screens stay unavailable
+  const [platform, setPlatform] = useState('ios'); // 'ios' | 'android' — only popup styling differs
+  const [chatEntry, setChatEntry] = useState('menu'); // how the chat was opened: 'icon' (home AIVA icon) | 'menu' (side menu)
   const soundPromptShown = useRef(false); // only ever shown once
   const [showSoundPrompt, setShowSoundPrompt] = useState(false);
   const [micPermission, setMicPermission] = useState('unknown'); // 'unknown' | 'granted' | 'denied'
@@ -2036,6 +2241,27 @@ export default function AskAivaMockup() {
     handleContactUsRedirect('Give feedback');
   };
 
+  // Run an action that needs the user's location. If location is off, show the
+  // popup the first time only; Yes continues to the screen, No stays put.
+  const withLocation = (action) => {
+    if (locationDenied.current) return; // denied earlier: the screen can't be opened, no popup again
+    if (locationStatus === 'on' || locationPromptShown.current) return action();
+    locationPromptShown.current = true;
+    pendingLocationAction.current = action;
+    setLocationPromptOpen(true);
+  };
+  const handleLocationYes = () => {
+    setLocationPromptOpen(false);
+    const action = pendingLocationAction.current;
+    pendingLocationAction.current = null;
+    if (action) action();
+  };
+  const handleLocationNo = () => {
+    locationDenied.current = true;
+    setLocationPromptOpen(false);
+    pendingLocationAction.current = null;
+  };
+
   const handleOption = (opt) => {
     if (LEVEL_INFO[opt]) return handleLevelSelect(opt);
     if (opt === 'Station Map') return handleStationMapEntry();
@@ -2043,15 +2269,25 @@ export default function AskAivaMockup() {
     if (opt === 'Ang Mo Kio Bus Interchange') return handleAmkSelect();
     if (opt === 'Where is the nearest bus stop?') return handleNearestBusStop();
     if (opt === 'How do I get to…?') return handleJourneyStub(opt, null);
-    if (opt === 'View my journey planner') return setScreen('journey');
-    if (opt === 'Bus stops near me') return setScreen('nearby');
+    if (opt === 'View my journey planner') {
+      // Only a journey from the user's current location needs location (DL8-C)
+      if (/current location|your location/i.test(journeyOrigin)) return withLocation(() => setScreen('journey'));
+      return setScreen('journey');
+    }
+    if (opt === 'Bus stops near me') return withLocation(() => setScreen('nearby')); // DL1
     if (/^Bus stops near .+ STN$/.test(opt)) return setScreen('stationBusStops');
     if (opt === 'Bus arrival times near me') {
-      setPendingBusStopCode('59409');
-      return setScreen('busArrival');
+      return withLocation(() => { // DL2
+        setPendingBusStopCode('59409');
+        setScreen('busArrival');
+      });
     }
     if (/^Bus stop (.+) arrival times$/.test(opt)) return setScreen('busArrival');
-    if (/^Service (.+) arrival times$/.test(opt)) return setScreen('serviceArrival');
+    if (/^Service (.+) arrival times$/.test(opt)) {
+      // No stop named (DL3-A) needs location; a named stop (DL3-B) doesn't
+      if (!pendingServiceStop) return withLocation(() => setScreen('serviceArrival'));
+      return setScreen('serviceArrival');
+    }
     if (opt === 'View bridging bus locations') return setScreen('bridgingBusLocation');
     if (opt === 'View alternative transport options') return setScreen('alternativeTransport');
     if (opt === 'Give feedback regarding SBS Transit services') return handleContactUsRedirect(opt);
@@ -2185,7 +2421,8 @@ export default function AskAivaMockup() {
   const handleStartRecording = () => {
     if (micPermission === 'denied') return;
     if (micPermission === 'granted') return setIsRecording(true);
-    setPermissionPrompt('speech');
+    // iOS asks for Speech Recognition then Microphone; Android has one prompt.
+    setPermissionPrompt(platform === 'android' ? 'android' : 'speech');
   };
 
   const handleDenyPermission = () => {
@@ -2219,6 +2456,7 @@ export default function AskAivaMockup() {
   const handleMenuSelect = (label) => {
     setMenuOpen(false);
     if (label === 'Ask AIVA') {
+      setChatEntry('menu');
       setScreen('chat');
     } else if (label === 'Home') {
       setScreen('home');
@@ -2232,7 +2470,7 @@ export default function AskAivaMockup() {
         style={{ width: 375, height: 780, borderRadius: '36px', border: '8px solid #111827' }}
       >
         {screen === 'home' ? (
-          <HomeScreen onOpenMenu={() => setMenuOpen(true)} onOpenAiva={() => setScreen('chat')} />
+          <HomeScreen onOpenMenu={() => setMenuOpen(true)} onOpenAiva={() => { setChatEntry('icon'); setScreen('chat'); }} />
         ) : screen === 'journey' ? (
           <JourneyPlannerScreen
             origin={journeyOrigin}
@@ -2263,14 +2501,25 @@ export default function AskAivaMockup() {
             style={{ gridTemplateColumns: '1fr auto 1fr' }}
           >
             <div className="flex items-center justify-start">
-              <button
-                onClick={() => setMenuOpen(true)}
-                className="p-2 rounded-full transition shrink-0"
-                style={{ backgroundColor: 'rgba(255,255,255,0.12)' }}
-                aria-label="Open menu"
-              >
-                <Menu size={18} color="#fff" />
-              </button>
+              {chatEntry === 'icon' ? (
+                <button
+                  onClick={() => setScreen('home')}
+                  className="p-2 rounded-full transition shrink-0"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.12)' }}
+                  aria-label="Back to home screen"
+                >
+                  <ArrowLeft size={18} color="#fff" />
+                </button>
+              ) : (
+                <button
+                  onClick={() => setMenuOpen(true)}
+                  className="p-2 rounded-full transition shrink-0"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.12)' }}
+                  aria-label="Open menu"
+                >
+                  <Menu size={18} color="#fff" />
+                </button>
+              )}
             </div>
             <p className="text-white text-sm font-semibold text-center whitespace-nowrap">Ask AIVA</p>
             <div />
@@ -2479,9 +2728,10 @@ export default function AskAivaMockup() {
           )}
         </div>
 
-        {showSoundPrompt && <SoundPromptDialog onChoose={handleChooseSound} />}
+        {locationPromptOpen && <LocationDialog mode={locationStatus} platform={platform} onYes={handleLocationYes} onNo={handleLocationNo} />}
+        {showSoundPrompt && <SoundPromptDialog onChoose={handleChooseSound} platform={platform} />}
         {permissionPrompt && (
-          <PermissionDialog kind={permissionPrompt} onDeny={handleDenyPermission} onAllow={handleAllowPermission} />
+          <PermissionDialog kind={permissionPrompt} onDeny={handleDenyPermission} onAllow={handleAllowPermission} platform={platform} />
         )}
         {redirectLoading && (
           <div className="absolute inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: 'rgba(17,17,20,0.35)' }} role="status" aria-label="Loading">
@@ -2495,7 +2745,7 @@ export default function AskAivaMockup() {
           </div>
         )}
         {showExitWarning && (
-          <ExitWarningModal onCancel={handleCancelExitWarning} onConfirm={handleConfirmExitWarning} />
+          <ExitWarningModal onCancel={handleCancelExitWarning} onConfirm={handleConfirmExitWarning} platform={platform} />
         )}
         {enlargedMap && (
           <EnlargedMapOverlay level={enlargedMap.level} station={enlargedMap.station} onClose={() => setEnlargedMap(null)} />
@@ -2508,7 +2758,21 @@ export default function AskAivaMockup() {
 
       {/* Demo-only control, outside the phone/app UI. */}
       <div className="flex flex-col gap-3 select-none">
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Train Service</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Platform</p>
+        <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: '#E5E5EA' }} role="group" aria-label="Platform">
+          {[['ios', 'iOS'], ['android', 'Android']].map(([val, label]) => (
+            <button
+              key={val}
+              onClick={() => setPlatform(val)}
+              aria-pressed={platform === val}
+              className="flex-1 px-4 py-2.5 text-sm font-medium transition"
+              style={platform === val ? { backgroundColor: GRADIENT, color: '#fff' } : { backgroundColor: '#fff', color: '#4B4B55' }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mt-2">Train Service</p>
         <button
           onClick={() => setTrainDisruption((v) => !v)}
           className="text-left px-4 py-2.5 rounded-lg text-sm font-medium transition border"
@@ -2526,6 +2790,23 @@ export default function AskAivaMockup() {
         </button>
         <p className="text-xs text-gray-400 max-w-[220px] leading-relaxed">
           Controls AIVA&apos;s reply to &ldquo;Is there a train disruption now?&rdquo;.
+        </p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mt-2">Location</p>
+        <div className="flex flex-col rounded-lg overflow-hidden border" style={{ borderColor: '#E5E5EA' }} role="group" aria-label="Location state">
+          {[['on', 'Location on'], ['appOff', 'Off for the app'], ['phoneOff', 'Off for the whole phone']].map(([val, label]) => (
+            <button
+              key={val}
+              onClick={() => { setLocationStatus(val); locationPromptShown.current = false; locationDenied.current = false; }}
+              aria-pressed={locationStatus === val}
+              className="text-left px-4 py-2 text-sm font-medium transition"
+              style={locationStatus === val ? { backgroundColor: GRADIENT, color: '#fff' } : { backgroundColor: '#fff', color: '#4B4B55' }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-gray-400 max-w-[220px] leading-relaxed">
+          The location popup shows once, only on links that need location. If the user says No / Don't allow, those screens stay unavailable. Changing this resets it.
         </p>
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mt-2">Voice Permission</p>
         <button
@@ -2570,9 +2851,6 @@ export default function AskAivaMockup() {
           Unrecognized response / error
           <span className="block text-xs font-normal opacity-80 mt-0.5">Shows the error banner — chat stays intact</span>
         </button>
-        <p className="text-xs text-gray-400 max-w-[220px] leading-relaxed">
-          Simulates AIVA returning a response the app doesn&apos;t recognize, or an error. The banner sits at the top of the chat; the conversation underneath stays fully usable, and it can be dismissed with the ✕.
-        </p>
       </div>
     </div>
   );
