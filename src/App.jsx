@@ -1201,9 +1201,72 @@ function LocationDialog({ mode, platform = 'ios', onYes, onNo }) {
   );
 }
 
+// iOS Settings → SBS Transit (reached from the Microphone / Speech Recognition
+// "Open Settings" popup). Toggles reflect and change the permissions.
+function AppSettingsScreen({ locationOn, micOn, speechOn, onToggleMic, onToggleSpeech, onBack }) {
+  const Toggle = ({ on, onClick, label }) => (
+    <button
+      onClick={onClick}
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      className="relative rounded-full transition-colors shrink-0"
+      style={{ width: 51, height: 31, backgroundColor: on ? '#34C759' : '#E3E3E6' }}
+    >
+      <span className="absolute rounded-full bg-white shadow transition-all" style={{ top: 2, width: 27, height: 27, left: on ? 22 : 2 }} />
+    </button>
+  );
+  const Icon = ({ bg, children }) => (
+    <span className="flex items-center justify-center shrink-0" style={{ width: 30, height: 30, borderRadius: 7, background: bg }}>{children}</span>
+  );
+  const Row = ({ icon, label, sub, right, last }) => (
+    <div className="flex items-center gap-3 pl-4" style={{ minHeight: 46 }}>
+      {icon}
+      <div className="flex-1 flex items-center justify-between pr-4 py-2" style={{ borderBottom: last ? 'none' : '1px solid #E5E5EA', minHeight: 46 }}>
+        <div>
+          <p style={{ margin: 0, fontSize: 16, color: '#111' }}>{label}</p>
+          {sub && <p style={{ margin: 0, fontSize: 12, color: '#8A8A8E' }}>{sub}</p>}
+        </div>
+        {right}
+      </div>
+    </div>
+  );
+  const chevron = <ChevronRight size={16} color="#C0C0C6" />;
+  return (
+    <div className="flex flex-col h-full" style={{ backgroundColor: '#F2F2F7' }}>
+      <StatusBarRow dark />
+      <div className="relative flex items-center justify-center px-4 pt-2 pb-3 shrink-0">
+        <button onClick={onBack} className="absolute left-3 flex items-center" style={{ color: '#007AFF' }} aria-label="Back to chat">
+          <ChevronLeft size={24} color="#007AFF" />
+          <span style={{ fontSize: 16 }}>Apps</span>
+        </button>
+        <p style={{ margin: 0, fontSize: 16, fontWeight: 600, color: '#111' }}>SBS Transit</p>
+      </div>
+      <p style={{ margin: 0, padding: '14px 28px 6px', fontSize: 12, color: '#8A8A8E', textTransform: 'uppercase' }}>Allow SBS Transit to access</p>
+      <div className="bg-white overflow-hidden" style={{ margin: '0 16px', borderRadius: 18 }}>
+        <Row
+          icon={<Icon bg="#0A7AFF"><Navigation size={16} color="#fff" fill="#fff" /></Icon>}
+          label="Location"
+          right={<span className="flex items-center gap-1" style={{ color: '#8A8A8E', fontSize: 15 }}>{locationOn ? 'While Using' : 'Never'}{chevron}</span>}
+        />
+        <Row icon={<Icon bg="#FF9500"><Mic size={16} color="#fff" /></Icon>} label="Microphone" right={<Toggle on={micOn} onClick={onToggleMic} label="Microphone" />} />
+        <Row
+          icon={<Icon bg="#8E8E93"><svg width="16" height="16" viewBox="0 0 30 30" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round"><path d="M4 13v4M9 9v12M15 4v22M21 9v12M26 13v4" /></svg></Icon>}
+          label="Speech Recognition"
+          right={<Toggle on={speechOn} onClick={onToggleSpeech} label="Speech Recognition" />}
+        />
+        <Row icon={<Icon bg="linear-gradient(135deg,#1C1C3A,#C2185B)"><Circle size={14} color="#7AD7FF" /></Icon>} label="Siri" right={chevron} />
+        <Row icon={<Icon bg="#8E8E93"><Search size={16} color="#fff" /></Icon>} label="Search" right={chevron} />
+        <Row icon={<Icon bg="#FF3B30"><Bell size={16} color="#fff" /></Icon>} label="Notifications" sub="Banners, Sounds, Badges" right={chevron} />
+        <Row icon={<Icon bg="#8E8E93"><RefreshCw size={15} color="#fff" /></Icon>} label="Background App Refresh" right={<Toggle on onClick={() => {}} label="Background App Refresh" />} last />
+      </div>
+    </div>
+  );
+}
+
 // Device Settings → Location Services (reached from "Open Settings").
 // Turning it on sets location permission to on; Back returns to the chat.
-function LocationSettingsScreen({ platform = 'ios', enabled, onToggle, onBack }) {
+function LocationSettingsScreen({ platform = 'ios', enabled, onToggle, onBack, title = 'Location', showRows = true }) {
   const isAndroid = platform === 'android';
   if (isAndroid) {
     // Android (One UI-style) Location settings: big left-aligned title, a wide
@@ -1222,13 +1285,13 @@ function LocationSettingsScreen({ platform = 'ios', enabled, onToggle, onBack })
             <ArrowLeft size={24} color="#111" />
           </button>
         </div>
-        <p style={{ padding: '40px 24px 0', margin: 0, fontSize: 30, lineHeight: '38px', fontWeight: 600, color: '#111' }}>Location</p>
+        <p style={{ padding: '40px 24px 0', margin: 0, fontSize: 30, lineHeight: '38px', fontWeight: 600, color: '#111' }}>{title}</p>
         <div style={{ padding: '28px 20px 0' }}>
           <button
             onClick={onToggle}
             role="switch"
             aria-checked={enabled}
-            aria-label="Location"
+            aria-label={title}
             className="w-full flex items-center justify-between rounded-full transition-colors"
             style={{ backgroundColor: enabled ? '#3E91FF' : '#E3E3E6', padding: '18px 28px' }}
           >
@@ -1240,7 +1303,7 @@ function LocationSettingsScreen({ platform = 'ios', enabled, onToggle, onBack })
               />
             </span>
           </button>
-          <div className="bg-white overflow-hidden" style={{ marginTop: 16, borderRadius: 28 }}>
+          {showRows && <div className="bg-white overflow-hidden" style={{ marginTop: 16, borderRadius: 28 }}>
             {['App permissions', 'Location services'].map((label, i) => (
               <div key={label} style={{ padding: '18px 28px', borderTop: i ? '1px solid #EEEEF0' : 'none' }}>
                 <p style={{ margin: 0, fontSize: 16, color: '#111' }}>{label}</p>
@@ -1249,7 +1312,7 @@ function LocationSettingsScreen({ platform = 'ios', enabled, onToggle, onBack })
                 </p>
               </div>
             ))}
-          </div>
+          </div>}
         </div>
       </div>
     );
@@ -1304,9 +1367,7 @@ function LocationSettingsScreen({ platform = 'ios', enabled, onToggle, onBack })
 
 // Custom "Location Access Needed" popup, shown each time a location-based link
 // is tapped after the user previously denied permission.
-function LocationSettingsDialog({ platform = 'ios', onCancel, onOpenSettings }) {
-  const title = 'Location Access Needed';
-  const body = 'Turn on location access for SBS Transit in Settings to see bus stops near you.';
+function LocationSettingsDialog({ platform = 'ios', onCancel, onOpenSettings, title = 'Location Access Needed', body = 'Turn on location access for SBS Transit in Settings to see bus stops near you.' }) {
   if (platform === 'android') {
     return (
       <div className="absolute inset-0 z-50 flex items-center justify-center px-6" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} role="alertdialog" aria-modal="true">
@@ -1981,7 +2042,11 @@ export default function AskAivaMockup() {
   const [chatEntry, setChatEntry] = useState('menu'); // how the chat was opened: 'icon' (home AIVA icon) | 'menu' (side menu)
   const soundPromptShown = useRef(false); // only ever shown once
   const [showSoundPrompt, setShowSoundPrompt] = useState(false);
+  const [micDeniedKind, setMicDeniedKind] = useState('mic'); // which prompt was denied: 'speech' | 'mic'
+  const [micSettingsPrompt, setMicSettingsPrompt] = useState(false);
   const [micPermission, setMicPermission] = useState('unknown'); // 'unknown' | 'granted' | 'denied'
+  const [speechOn, setSpeechOn] = useState(false); // iOS Speech Recognition permission
+  const [micOn, setMicOn] = useState(false); // Microphone permission
   const [permissionPrompt, setPermissionPrompt] = useState(null); // null | 'speech' | 'mic'
   const [pendingStationBusStops, setPendingStationBusStops] = useState('Downtown');
   const [soundOn, setSoundOn] = useState(true);
@@ -2599,24 +2664,45 @@ export default function AskAivaMockup() {
   };
 
   const handleStartRecording = () => {
-    if (micPermission === 'denied') return;
+    if (micPermission === 'denied') return setMicSettingsPrompt(true); // denied earlier: explain how to enable
     if (micPermission === 'granted') return setIsRecording(true);
     // iOS asks for Speech Recognition then Microphone; Android has one prompt.
     setPermissionPrompt(platform === 'android' ? 'android' : 'speech');
   };
 
   const handleDenyPermission = () => {
+    setMicDeniedKind(permissionPrompt === 'speech' ? 'speech' : 'mic');
+    if (permissionPrompt === 'speech') { setSpeechOn(false); setMicOn(false); } // mic prompt never reached
+    else if (permissionPrompt === 'mic') setMicOn(false);
+    else { setMicOn(false); setSpeechOn(true); } // Android: single mic prompt
     setPermissionPrompt(null);
     setMicPermission('denied');
+  };
+
+  const handleMicSettingsCancel = () => setMicSettingsPrompt(false);
+  const handleMicOpenSettings = () => {
+    setMicSettingsPrompt(false);
+    setScreen('appSettings');
+  };
+  // Settings toggles: access is granted only when everything needed is on.
+  const applyVoiceToggles = (speech, mic) => {
+    setSpeechOn(speech);
+    setMicOn(mic);
+    const needed = platform === 'android' ? mic : speech && mic;
+    setMicPermission(needed ? 'granted' : 'denied');
+    setMicDeniedKind(!speech && platform !== 'android' ? 'speech' : 'mic');
   };
 
   const handleAllowPermission = () => {
     if (permissionPrompt === 'speech') {
       // Brief pause so the Microphone prompt doesn't pop in instantly after Speech Recognition.
+      setSpeechOn(true);
       setPermissionPrompt(null);
       setTimeout(() => setPermissionPrompt('mic'), 1200);
       return;
     }
+    setSpeechOn(true);
+    setMicOn(true);
     setPermissionPrompt(null);
     setMicPermission('granted');
     setIsRecording(true);
@@ -2657,6 +2743,26 @@ export default function AskAivaMockup() {
             destination={journeyDestination}
             onBack={() => setScreen('chat')}
           />
+        ) : screen === 'appSettings' ? (
+          platform === 'android' ? (
+            <LocationSettingsScreen
+              platform="android"
+              title="Microphone"
+              showRows={false}
+              enabled={micOn}
+              onToggle={() => applyVoiceToggles(true, !micOn)}
+              onBack={() => setScreen('chat')}
+            />
+          ) : (
+            <AppSettingsScreen
+              locationOn={locationStatus === 'on'}
+              micOn={micOn}
+              speechOn={speechOn}
+              onToggleMic={() => applyVoiceToggles(speechOn, !micOn)}
+              onToggleSpeech={() => applyVoiceToggles(!speechOn, micOn)}
+              onBack={() => setScreen('chat')}
+            />
+          )
         ) : screen === 'locationSettings' ? (
           <LocationSettingsScreen
             platform={platform}
@@ -2895,10 +3001,9 @@ export default function AskAivaMockup() {
               />
               <button
                 onClick={handleStartRecording}
-                disabled={micPermission === 'denied'}
                 className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition"
-                style={{ backgroundColor: '#F1F1F4', color: '#6B6B76', opacity: micPermission === 'denied' ? 0.4 : 1, cursor: micPermission === 'denied' ? 'not-allowed' : 'pointer' }}
-                aria-label={micPermission === 'denied' ? 'Voice input unavailable — microphone access denied' : 'Voice input'}
+                style={{ backgroundColor: '#F1F1F4', color: '#6B6B76' }}
+                aria-label="Voice input"
               >
                 <Mic size={18} />
               </button>
@@ -2915,6 +3020,17 @@ export default function AskAivaMockup() {
           )}
         </div>
 
+        {micSettingsPrompt && (
+          <LocationSettingsDialog
+            platform={platform}
+            onCancel={handleMicSettingsCancel}
+            onOpenSettings={handleMicOpenSettings}
+            title={micDeniedKind === 'speech' && platform !== 'android' ? 'Speech Recognition Access Needed' : 'Microphone Access Needed'}
+            body={micDeniedKind === 'speech' && platform !== 'android'
+              ? 'Turn on speech recognition for SBS Transit in Settings to talk to AIVA.'
+              : 'Turn on microphone access for SBS Transit in Settings to talk to AIVA.'}
+          />
+        )}
         {locationSettingsOpen && <LocationSettingsDialog platform={platform} onCancel={handleLocationSettingsCancel} onOpenSettings={handleLocationOpenSettings} />}
         {locationPromptOpen && <LocationDialog mode={locationStatus} platform={platform} onYes={handleLocationYes} onNo={handleLocationNo} />}
         {showSoundPrompt && <SoundPromptDialog onChoose={handleChooseSound} platform={platform} />}
@@ -2995,13 +3111,13 @@ export default function AskAivaMockup() {
         </div>
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mt-2">Voice Permission</p>
         <button
-          onClick={() => { setMicPermission('unknown'); setPermissionPrompt(null); setIsRecording(false); }}
+          onClick={() => { setMicPermission('unknown'); setSpeechOn(false); setMicOn(false); setPermissionPrompt(null); setIsRecording(false); }}
           className="text-left px-4 py-2.5 rounded-lg text-sm font-medium transition border"
           style={{ backgroundColor: '#fff', color: '#4B4B55', borderColor: '#E5E5EA' }}
         >
           {platform === 'android' ? 'Reset Microphone' : 'Reset Microphone and Speech Permission'}
           <span className="block text-xs font-normal opacity-80 mt-0.5">
-            Now: {micPermission === 'unknown' ? 'not asked yet' : micPermission === 'granted' ? 'allowed' : 'denied (mic disabled)'}
+            Now: {micPermission === 'unknown' ? 'not asked yet' : micPermission === 'granted' ? 'allowed' : 'denied'}
           </span>
         </button>
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mt-2">Bus Service Screen</p>
