@@ -1201,6 +1201,135 @@ function LocationDialog({ mode, platform = 'ios', onYes, onNo }) {
   );
 }
 
+// Device Settings → Location Services (reached from "Open Settings").
+// Turning it on sets location permission to on; Back returns to the chat.
+function LocationSettingsScreen({ platform = 'ios', enabled, onToggle, onBack }) {
+  const isAndroid = platform === 'android';
+  if (isAndroid) {
+    // Android (One UI-style) Location settings: big left-aligned title, a wide
+    // On/Off switch bar, and plain list rows.
+    return (
+      <div className="flex flex-col h-full" style={{ backgroundColor: '#F6F6F8' }}>
+        <StatusBarRow dark />
+        <div className="px-4 pt-3 shrink-0">
+          <button onClick={onBack} className="w-10 h-10 -ml-2 flex items-center justify-center rounded-full" aria-label="Back to chat">
+            <ArrowLeft size={24} color="#111" />
+          </button>
+        </div>
+        <p className="px-5 mt-10 mb-6 text-[30px] font-semibold" style={{ color: '#111' }}>Location</p>
+        <div className="px-4">
+          <button
+            onClick={onToggle}
+            role="switch"
+            aria-checked={enabled}
+            aria-label="Location"
+            className="w-full flex items-center justify-between px-6 py-5 rounded-full transition-colors"
+            style={{ backgroundColor: enabled ? '#3E91FF' : '#E3E3E6' }}
+          >
+            <span className="text-[17px] font-medium" style={{ color: enabled ? '#fff' : '#111' }}>{enabled ? 'On' : 'Off'}</span>
+            <span className="relative rounded-full shrink-0 transition-colors" style={{ width: 50, height: 28, backgroundColor: enabled ? '#fff' : '#8E8E93' }}>
+              <span
+                className="absolute top-1 rounded-full transition-all"
+                style={{ width: 20, height: 20, left: enabled ? 26 : 4, backgroundColor: enabled ? '#3E91FF' : '#fff' }}
+              />
+            </span>
+          </button>
+          <div className="mt-4 bg-white rounded-3xl overflow-hidden">
+            {['App permissions', 'Location services'].map((label, i) => (
+              <div key={label} className="px-6 py-4" style={{ borderTop: i ? '1px solid #EEEEF0' : 'none' }}>
+                <p className="text-[16px]" style={{ color: '#111' }}>{label}</p>
+                <p className="text-[13px] mt-0.5" style={{ color: '#7A7A80' }}>
+                  {label === 'App permissions' ? 'Choose which apps can use your location.' : 'Improve accuracy using Wi-Fi and mobile networks.'}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col h-full" style={{ backgroundColor: '#F2F2F7' }}>
+      <StatusBarRow dark />
+      <div className="relative flex items-center justify-center px-4 pt-3 pb-4 shrink-0">
+        <button
+          onClick={onBack}
+          className="absolute left-4 w-10 h-10 rounded-full flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(255,255,255,0.9)', boxShadow: '0 1px 4px rgba(0,0,0,0.15)', border: '1px solid #E0E0E4' }}
+          aria-label="Back to chat"
+        >
+          <ChevronLeft size={22} color="#111" />
+        </button>
+        <p className="text-[17px] font-semibold" style={{ color: '#111' }}>{isAndroid ? 'Location' : 'Location Services'}</p>
+      </div>
+
+      <div className="px-4 mt-5">
+        <div className="bg-white rounded-[22px] overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3.5">
+            <span className="text-[17px]" style={{ color: '#111' }}>{isAndroid ? 'Use location' : 'Location Services'}</span>
+            <button
+              onClick={onToggle}
+              role="switch"
+              aria-checked={enabled}
+              aria-label="Location Services"
+              className="relative rounded-full transition-colors shrink-0"
+              style={{ width: 52, height: 32, backgroundColor: enabled ? '#34C759' : '#C7C7CC', border: enabled ? 'none' : '2px solid #D6D6DA' }}
+            >
+              <span
+                className="absolute top-0.5 rounded-full bg-white shadow transition-all"
+                style={{ width: 27, height: 27, left: enabled ? 23 : 1 }}
+              />
+            </button>
+          </div>
+          <div style={{ height: 1, backgroundColor: '#E5E5EA', marginLeft: 16 }} />
+          <div className="flex items-center justify-between px-4 py-3.5">
+            <span className="text-[17px]" style={{ color: '#111' }}>Location Alerts</span>
+            <ChevronRight size={18} color="#C0C0C6" />
+          </div>
+        </div>
+        <p className="text-[13px] leading-snug mt-3 px-4" style={{ color: '#8A8A8E' }}>
+          Location Services uses GPS, Bluetooth, and crowd-sourced Wi-Fi hotspot and cell tower locations to determine your location.{' '}
+          <span style={{ color: '#007AFF' }}>About Location Services &amp; Privacy…</span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Custom "Location Access Needed" popup, shown each time a location-based link
+// is tapped after the user previously denied permission.
+function LocationSettingsDialog({ platform = 'ios', onCancel, onOpenSettings }) {
+  const title = 'Location Access Needed';
+  const body = 'Turn on location access for SBS Transit in Settings to see bus stops near you.';
+  if (platform === 'android') {
+    return (
+      <div className="absolute inset-0 z-50 flex items-center justify-center px-6" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }} role="alertdialog" aria-modal="true">
+        <div className="w-full bg-white text-left overflow-hidden" style={{ borderRadius: 28, padding: '24px 24px 12px' }}>
+          <p className="text-[17px] font-semibold leading-snug" style={{ color: '#111' }}>{title}</p>
+          <p className="text-sm mt-3 leading-snug" style={{ color: '#555' }}>{body}</p>
+          <div className="flex items-center mt-5">
+            <button onClick={onCancel} className="flex-1 py-3 text-[15px] font-semibold" style={{ color: '#111' }}>Cancel</button>
+            <div style={{ width: 1, height: 22, backgroundColor: '#D5D5D8' }} />
+            <button onClick={onOpenSettings} className="flex-1 py-3 text-[15px] font-semibold" style={{ color: '#111' }}>Open Settings</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="absolute inset-0 z-50 flex items-center justify-center px-6" style={{ backgroundColor: 'rgba(0,0,0,0.35)' }} role="alertdialog" aria-modal="true">
+      <div className="w-full rounded-[26px] p-4 text-left" style={{ backgroundColor: 'rgba(236,236,240,0.96)', color: '#111', backdropFilter: 'blur(12px)' }}>
+        <p className="text-[15px] font-semibold leading-snug">{title}</p>
+        <p className="text-xs mt-1.5 leading-snug" style={{ color: '#7A7A80' }}>{body}</p>
+        <div className="flex gap-2.5 mt-4">
+          <button onClick={onCancel} className="flex-1 py-3 rounded-full text-sm font-semibold" style={{ backgroundColor: 'rgba(120,120,128,0.2)', color: '#111' }}>Cancel</button>
+          <button onClick={onOpenSettings} className="flex-1 py-3 rounded-full text-sm font-semibold" style={{ backgroundColor: 'rgba(120,120,128,0.2)', color: '#111' }}>Open Settings</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SoundPromptDialog({ onChoose, platform = 'ios' }) {
   if (platform === 'android') {
     return (
@@ -1402,8 +1531,9 @@ function DrawerMenu({ open, onClose, onSelect }) {
         className="absolute top-0 left-0 h-full z-40 flex flex-col transition-transform duration-300 ease-out"
         style={{ width: '78%', backgroundColor: '#1C1C1E', transform: open ? 'translateX(0)' : 'translateX(-100%)' }}
       >
-        <div className="flex-1 overflow-y-auto pt-14">
-          {MENU_ITEMS.map(({ icon: Icon, label, aiva }) => (
+        <div className="relative flex-1 min-h-0">
+        <div className="h-full overflow-y-auto pt-14 pb-16">
+          {MENU_ITEMS.filter((item) => !item.aiva).map(({ icon: Icon, label, aiva }) => (
             <button
               key={label}
               onClick={() => onSelect(label)}
@@ -1414,6 +1544,19 @@ function DrawerMenu({ open, onClose, onSelect }) {
               <span className="text-[15px] font-medium" style={{ color: aiva ? '#D9A9E8' : '#EDEDEF' }}>{label}</span>
             </button>
           ))}
+        </div>
+        {/* Ask AIVA: same look as the other menu items, pinned to the bottom of the
+            drawer and floating above the menu content. It lives inside the drawer
+            panel, so it is only visible while the menu is open. */}
+        <button
+          onClick={() => onSelect('Ask AIVA')}
+          className="absolute left-0 right-0 bottom-0 w-full flex items-center gap-4 px-5 py-4 text-left transition border-t"
+          style={{ borderColor: 'rgba(255,255,255,0.08)', backgroundColor: '#1C1C1E', boxShadow: '0 -8px 12px rgba(0,0,0,0.35)' }}
+          aria-label="Ask AIVA"
+        >
+          <MessageCircle size={22} color="#D9A9E8" strokeWidth={1.6} />
+          <span className="text-[15px] font-medium" style={{ color: '#D9A9E8' }}>Ask AIVA</span>
+        </button>
         </div>
         <div className="px-5 py-3 shrink-0" style={{ backgroundColor: '#2C2C2E' }}>
           <p className="text-[11px] text-gray-400">SBS Transit v2.9.7</p>
@@ -1636,12 +1779,14 @@ function HomeScreen({ onOpenMenu, onOpenAiva }) {
   );
 }
 
-function OptionButton({ label, onClick }) {
+function OptionButton({ label, onClick, disabled = false }) {
   return (
     <button
-      onClick={onClick}
-      className="w-full text-center rounded-full px-4 py-2.5 text-sm font-semibold text-white transition active:scale-95"
-      style={{ background: GRADIENT }}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      aria-disabled={disabled}
+      className={`w-full text-center rounded-full px-4 py-2.5 text-sm font-semibold transition ${disabled ? '' : 'text-white active:scale-95'}`}
+      style={disabled ? { background: '#E4E0E8', color: '#A39AAB', cursor: 'not-allowed' } : { background: GRADIENT }}
     >
       {label}
     </button>
@@ -1770,7 +1915,7 @@ function Message({ msg, onOption, onRate, onEnlargeMap }) {
     return (
       <div className="flex flex-col items-stretch gap-2 pl-1">
         {msg.options.map((opt) => (
-          <OptionButton key={opt} label={opt} onClick={() => onOption(opt)} />
+          <OptionButton key={opt} label={opt} disabled={!!msg.disabled} onClick={() => onOption(opt)} />
         ))}
       </div>
     );
@@ -1822,6 +1967,7 @@ export default function AskAivaMockup() {
   const [showDisclaimer, setShowDisclaimer] = useState(true);
   const [locationStatus, setLocationStatus] = useState('appOff'); // 'on' | 'appOff' | 'phoneOff' (demo control)
   const [locationPromptOpen, setLocationPromptOpen] = useState(false);
+  const [locationSettingsOpen, setLocationSettingsOpen] = useState(false);
   const locationPromptShown = useRef(false); // the location popup is only ever shown once
   const pendingLocationAction = useRef(null);
   const locationDenied = useRef(false); // after No / Don't allow, location-based screens stay unavailable
@@ -1886,7 +2032,9 @@ export default function AskAivaMockup() {
   }, [messages, isTyping, isTranscribing, screen]);
 
   const addMessage = (msg) => setMessages((prev) => [...prev, { id: nextId(), time: new Date(), ...msg }]);
-  const clearOptions = () => setMessages((prev) => prev.filter((m) => m.type !== 'aiva-options'));
+  // Earlier action buttons stay in the chat history but become disabled once the
+  // conversation moves on (instead of being removed).
+  const clearOptions = () => setMessages((prev) => prev.map((m) => (m.type === 'aiva-options' ? { ...m, disabled: true } : m)));
 
   const respond = (fn, delay = 800) => {
     setIsTyping(true);
@@ -2244,7 +2392,12 @@ export default function AskAivaMockup() {
   // Run an action that needs the user's location. If location is off, show the
   // popup the first time only; Yes continues to the screen, No stays put.
   const withLocation = (action) => {
-    if (locationDenied.current) return; // denied earlier: the screen can't be opened, no popup again
+    if (locationDenied.current) {
+      // Denied earlier: show the custom "Location Access Needed" popup each time
+      pendingLocationAction.current = action;
+      setLocationSettingsOpen(true);
+      return;
+    }
     if (locationStatus === 'on' || locationPromptShown.current) return action();
     locationPromptShown.current = true;
     pendingLocationAction.current = action;
@@ -2255,6 +2408,27 @@ export default function AskAivaMockup() {
     const action = pendingLocationAction.current;
     pendingLocationAction.current = null;
     if (action) action();
+  };
+  const handleLocationSettingsCancel = () => {
+    setLocationSettingsOpen(false);
+    pendingLocationAction.current = null;
+  };
+  // Open Settings: in this mockup it stands in for the user turning location
+  // on there and coming back — so the screen they asked for now opens.
+  const handleLocationOpenSettings = () => {
+    setLocationSettingsOpen(false);
+    pendingLocationAction.current = null;
+    setScreen('locationSettings');
+  };
+  // Toggling Location Services on in Settings sets location permission to on.
+  const handleToggleLocationServices = () => {
+    if (locationStatus === 'on') {
+      setLocationStatus('appOff');
+      locationDenied.current = true;
+    } else {
+      setLocationStatus('on');
+      locationDenied.current = false;
+    }
   };
   const handleLocationNo = () => {
     locationDenied.current = true;
@@ -2475,6 +2649,13 @@ export default function AskAivaMockup() {
           <JourneyPlannerScreen
             origin={journeyOrigin}
             destination={journeyDestination}
+            onBack={() => setScreen('chat')}
+          />
+        ) : screen === 'locationSettings' ? (
+          <LocationSettingsScreen
+            platform={platform}
+            enabled={locationStatus === 'on'}
+            onToggle={handleToggleLocationServices}
             onBack={() => setScreen('chat')}
           />
         ) : screen === 'stationBusStops' ? (
@@ -2728,6 +2909,7 @@ export default function AskAivaMockup() {
           )}
         </div>
 
+        {locationSettingsOpen && <LocationSettingsDialog platform={platform} onCancel={handleLocationSettingsCancel} onOpenSettings={handleLocationOpenSettings} />}
         {locationPromptOpen && <LocationDialog mode={locationStatus} platform={platform} onYes={handleLocationYes} onNo={handleLocationNo} />}
         {showSoundPrompt && <SoundPromptDialog onChoose={handleChooseSound} platform={platform} />}
         {permissionPrompt && (
@@ -2793,7 +2975,7 @@ export default function AskAivaMockup() {
         </p>
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mt-2">Location</p>
         <div className="flex flex-col rounded-lg overflow-hidden border" style={{ borderColor: '#E5E5EA' }} role="group" aria-label="Location state">
-          {[['on', 'Location on'], ['appOff', 'Off for the app'], ['phoneOff', 'Off for the whole phone']].map(([val, label]) => (
+          {[['on', 'Location Service On'], ['appOff', 'Location Permission not giving'], ['phoneOff', 'Location Service Off']].map(([val, label]) => (
             <button
               key={val}
               onClick={() => { setLocationStatus(val); locationPromptShown.current = false; locationDenied.current = false; }}
@@ -2805,16 +2987,13 @@ export default function AskAivaMockup() {
             </button>
           ))}
         </div>
-        <p className="text-xs text-gray-400 max-w-[220px] leading-relaxed">
-          The location popup shows once, only on links that need location. If the user says No / Don't allow, those screens stay unavailable. Changing this resets it.
-        </p>
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mt-2">Voice Permission</p>
         <button
           onClick={() => { setMicPermission('unknown'); setPermissionPrompt(null); setIsRecording(false); }}
           className="text-left px-4 py-2.5 rounded-lg text-sm font-medium transition border"
           style={{ backgroundColor: '#fff', color: '#4B4B55', borderColor: '#E5E5EA' }}
         >
-          Reset permission
+          {platform === 'android' ? 'Reset Microphone' : 'Reset Microphone and Speech Permission'}
           <span className="block text-xs font-normal opacity-80 mt-0.5">
             Now: {micPermission === 'unknown' ? 'not asked yet' : micPermission === 'granted' ? 'allowed' : 'denied (mic disabled)'}
           </span>
