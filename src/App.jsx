@@ -1207,38 +1207,44 @@ function LocationSettingsScreen({ platform = 'ios', enabled, onToggle, onBack })
   const isAndroid = platform === 'android';
   if (isAndroid) {
     // Android (One UI-style) Location settings: big left-aligned title, a wide
-    // On/Off switch bar, and plain list rows.
+    // On/Off switch bar, and plain list rows. Spacing is set inline so it doesn't
+    // depend on utility classes.
     return (
       <div className="flex flex-col h-full" style={{ backgroundColor: '#F6F6F8' }}>
         <StatusBarRow dark />
-        <div className="px-4 pt-3 shrink-0">
-          <button onClick={onBack} className="w-10 h-10 -ml-2 flex items-center justify-center rounded-full" aria-label="Back to chat">
+        <div style={{ padding: '12px 20px 0' }}>
+          <button
+            onClick={onBack}
+            className="flex items-center justify-center rounded-full"
+            style={{ width: 40, height: 40, marginLeft: -8 }}
+            aria-label="Back to chat"
+          >
             <ArrowLeft size={24} color="#111" />
           </button>
         </div>
-        <p className="px-5 mt-10 mb-6 text-[30px] font-semibold" style={{ color: '#111' }}>Location</p>
-        <div className="px-4">
+        <p style={{ padding: '40px 24px 0', margin: 0, fontSize: 30, lineHeight: '38px', fontWeight: 600, color: '#111' }}>Location</p>
+        <div style={{ padding: '28px 20px 0' }}>
           <button
             onClick={onToggle}
             role="switch"
             aria-checked={enabled}
             aria-label="Location"
-            className="w-full flex items-center justify-between px-6 py-5 rounded-full transition-colors"
-            style={{ backgroundColor: enabled ? '#3E91FF' : '#E3E3E6' }}
+            className="w-full flex items-center justify-between rounded-full transition-colors"
+            style={{ backgroundColor: enabled ? '#3E91FF' : '#E3E3E6', padding: '18px 28px' }}
           >
-            <span className="text-[17px] font-medium" style={{ color: enabled ? '#fff' : '#111' }}>{enabled ? 'On' : 'Off'}</span>
+            <span style={{ fontSize: 17, fontWeight: 500, color: enabled ? '#fff' : '#111' }}>{enabled ? 'On' : 'Off'}</span>
             <span className="relative rounded-full shrink-0 transition-colors" style={{ width: 50, height: 28, backgroundColor: enabled ? '#fff' : '#8E8E93' }}>
               <span
-                className="absolute top-1 rounded-full transition-all"
-                style={{ width: 20, height: 20, left: enabled ? 26 : 4, backgroundColor: enabled ? '#3E91FF' : '#fff' }}
+                className="absolute rounded-full transition-all"
+                style={{ top: 4, width: 20, height: 20, left: enabled ? 26 : 4, backgroundColor: enabled ? '#3E91FF' : '#fff' }}
               />
             </span>
           </button>
-          <div className="mt-4 bg-white rounded-3xl overflow-hidden">
+          <div className="bg-white overflow-hidden" style={{ marginTop: 16, borderRadius: 28 }}>
             {['App permissions', 'Location services'].map((label, i) => (
-              <div key={label} className="px-6 py-4" style={{ borderTop: i ? '1px solid #EEEEF0' : 'none' }}>
-                <p className="text-[16px]" style={{ color: '#111' }}>{label}</p>
-                <p className="text-[13px] mt-0.5" style={{ color: '#7A7A80' }}>
+              <div key={label} style={{ padding: '18px 28px', borderTop: i ? '1px solid #EEEEF0' : 'none' }}>
+                <p style={{ margin: 0, fontSize: 16, color: '#111' }}>{label}</p>
+                <p style={{ margin: '4px 0 0', fontSize: 13, lineHeight: '18px', color: '#7A7A80' }}>
                   {label === 'App permissions' ? 'Choose which apps can use your location.' : 'Improve accuracy using Wi-Fi and mobile networks.'}
                 </p>
               </div>
